@@ -30,10 +30,9 @@ public class MainService extends Service {
     private Notification notification;
     private BluetoothController btCtrl;
     private BatteryTimer helper;
-    private boolean PLAYBACK_HAS_STOPPED_BEFORE = false;
     private boolean BATTERY_TESTING = false;
-    private int test_mode = 0;
-    private String testingConfig;
+    private BluetoothCodecConfig testingConfig;
+    private int previousBattLevel = -100;
 
     public MainService() {
     }
@@ -79,11 +78,16 @@ public class MainService extends Service {
                         switch (btCtrl.isPlaying()) {
                             case 2:
                                 state = "playing";
+                                if (BATTERY_TESTING){
+                                    helper.mainTimer();
+                                }
                                 break;
                             case 1:
                                 state = "not playing";
-                                helper.stopTimer();
-                                helper.resetTimer(ib);
+                                if (BATTERY_TESTING){
+                                    helper.pauseTimer();
+                                }
+
                                 break;
                             default:
                                 break;
@@ -93,7 +97,10 @@ public class MainService extends Service {
                     case BluetoothDevice.ACTION_BATTERY_LEVEL_CHANGED:
                         ib = intent.getIntExtra(BluetoothDevice.EXTRA_BATTERY_LEVEL, -39);
                         Log.d("battChanged", "now:" + ib);
-                        nextTimer(ib);
+                        if (BATTERY_TESTING){
+                            nextTimer(ib);
+                        }
+
                         setToolbarBattery(ib);
                         break;
                     default:
@@ -108,21 +115,20 @@ public class MainService extends Service {
             case 100:
                 break;
             case 70:
-                helper.stopTimer();
-                helper.startTimer70();
+                helper.stopTimer(previousBattLevel == 100);
+                helper.startTimer(70);
                 break;
             case 50:
-                helper.stopTimer();
-                helper.startTimer50();
+                helper.stopTimer(previousBattLevel == 70);
+                helper.startTimer(50);
                 break;
             case 20:
-                helper.stopTimer();
-                helper.startTimer20();
+                helper.stopTimer(previousBattLevel == 50);
+                helper.startTimer(20);
                 break;
             default:
-                helper.stopTimer();
-                helper.save(test_mode, testingConfig);
-                testingConfig = "";
+                helper.stopTimer(previousBattLevel == 20);
+                helper.save(testingConfig);
                 BATTERY_TESTING = false;
                 break;
 
@@ -150,10 +156,11 @@ public class MainService extends Service {
     private BroadcastReceiver a2dpReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (btCtrl.getBtCurrentConfig() != null) {
-                if (btCtrl.getBtCurrentConfig().getSampleRate() == 1) {
+            BluetoothCodecConfig btConfig = btCtrl.getBtCurrentConfig();
+            if (btConfig != null) {
+                if (btConfig.getSampleRate() == 1) {
                     remoteViews.setImageViewResource(R.id.toolbarModes, R.drawable.ic_high_quality_black_24dp);
-                } else if (btCtrl.getBtCurrentConfig().getCodecName().equals("AAC")) {
+                } else if (btConfig.getCodecName().equals("AAC")) {
                     remoteViews.setImageViewResource(R.id.toolbarModes, R.drawable.ic_battery_std_black_24dp);
                 }
                 remoteViews.setTextViewText(R.id.toolbarText, btCtrl.getMyBluetoothDevice().getName());
@@ -245,22 +252,9 @@ public class MainService extends Service {
                 makeToast("timer is running");
             } else {
                 if (btCtrl.getThisBatteryLevel() == 100) {
-                    BluetoothCodecConfig bluetoothCodecConfig = btCtrl.getBtCurrentConfig();
-                    testingConfig = bluetoothCodecConfig.toString();
-                    switch (bluetoothCodecConfig.getCodecName()) {
-                        case "AAC":
-                        case "SBC":
-                            test_mode = 1;
-                            break;
-                        case "aptX":
-                        case "aptX HD":
-                        case "LDAC":
-                            test_mode = 2;
-                            break;
-                        default:
-                            break;
-                    }
-                    helper.startTimer100();
+                    testingConfig = btCtrl.getBtCurrentConfig();
+                    helper.startTimer(100);
+                    previousBattLevel = 100;
                     BATTERY_TESTING = true;
                 } else {
                     makeToast("battery is not 100%");
