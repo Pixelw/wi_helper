@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Wi-Helper</string>
+    <string name="title_activity_main2">Main2Activity</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="nocon">not connected</string>
+    <string name="wi_h700">WI-H700</string>
+    <string name="modes">Modes:</string>
+    <string name="hq">HQ</string>
+    <string name="exampletime">8.0h</string>
+    <string name="exampleBatt">100%</string>
+    <string name="headphone">Headphone</string>
+    <string name="noconf">no config</string>
+</resources>

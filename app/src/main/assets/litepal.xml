@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<litepal>
+    <dbname value="BatteryAnalytics"></dbname>
+    <version value="1"></version>
+    <list>
+        <mapping class="com.pixel.wi_helper.bean.HighBatteryAnalytics"></mapping>
+        <mapping class="com.pixel.wi_helper.bean.LowBatteryAnalytics"></mapping>
+    </list>
+</litepal>
