@@ -41,6 +41,7 @@ public class MainService extends Service {
     public void onCreate() {
         super.onCreate();
         //System Broadcast receivers:
+        btCtrl = new BluetoothController();
         helper = new BatteryTimer();
         IntentFilter btEventFilter = new IntentFilter();
         btEventFilter.addAction(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED);
@@ -56,6 +57,7 @@ public class MainService extends Service {
                 (this, 0,
                         new Intent().setAction("SET_QUALITY"), PendingIntent.FLAG_UPDATE_CURRENT));
         Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         PendingIntent pi = PendingIntent.getActivity(this, 0, intent, 0);
         remoteViews.setOnClickPendingIntent(R.id.toolbarIcon, pi);
 
@@ -78,16 +80,15 @@ public class MainService extends Service {
                         switch (btCtrl.isPlaying()) {
                             case 2:
                                 state = "playing";
-                                if (BATTERY_TESTING){
+                                if (BATTERY_TESTING) {
                                     helper.mainTimer();
                                 }
                                 break;
                             case 1:
                                 state = "not playing";
-                                if (BATTERY_TESTING){
+                                if (BATTERY_TESTING) {
                                     helper.pauseTimer();
                                 }
-
                                 break;
                             default:
                                 break;
@@ -97,10 +98,10 @@ public class MainService extends Service {
                     case BluetoothDevice.ACTION_BATTERY_LEVEL_CHANGED:
                         ib = intent.getIntExtra(BluetoothDevice.EXTRA_BATTERY_LEVEL, -39);
                         Log.d("battChanged", "now:" + ib);
-                        if (BATTERY_TESTING){
+                        if (BATTERY_TESTING) {
                             nextTimer(ib);
                         }
-
+                        previousBattLevel = ib;
                         setToolbarBattery(ib);
                         break;
                     default:
@@ -115,15 +116,15 @@ public class MainService extends Service {
             case 100:
                 break;
             case 70:
-                helper.stopTimer(previousBattLevel == 100);
+                helper.stopTimer(true);
                 helper.startTimer(70);
                 break;
             case 50:
-                helper.stopTimer(previousBattLevel == 70);
+                helper.stopTimer(true);
                 helper.startTimer(50);
                 break;
             case 20:
-                helper.stopTimer(previousBattLevel == 50);
+                helper.stopTimer(true);
                 helper.startTimer(20);
                 break;
             default:
@@ -221,7 +222,6 @@ public class MainService extends Service {
         }
 
         boolean getBtReady() {
-            btCtrl = new BluetoothController();
             return btCtrl.daoGetBtOn();
         }
 
@@ -251,19 +251,18 @@ public class MainService extends Service {
             if (helper.isStarted()) {
                 makeToast("timer is running");
             } else {
-                if (btCtrl.getThisBatteryLevel() == 100) {
+                    int batLevel =  btCtrl.getThisBatteryLevel();
                     testingConfig = btCtrl.getBtCurrentConfig();
-                    helper.startTimer(100);
-                    previousBattLevel = 100;
+                    helper.startTimer(batLevel);
+                    previousBattLevel = batLevel;
                     BATTERY_TESTING = true;
-                } else {
-                    makeToast("battery is not 100%");
-                }
+                    makeToast("timer start at "+batLevel);
             }
         }
 
         String showStatus() {
-            return "100%:" + helper.getDurationSec100()
+            return "current Timer: " + helper.getTarget() + "%:" + helper.getSec() +
+                    "s\nsaved value:\n100%:" + helper.getDurationSec100()
                     + "s\n70%:" + helper.getDurationSec70()
                     + "s\n50%:" + helper.getDurationSec50()
                     + "s\n20%:" + helper.getDurationSec20() + "s";
@@ -276,6 +275,7 @@ public class MainService extends Service {
         int isPlaying() {
             return btCtrl.isPlaying();
         }
+
     }
 
     private void setToolbarBattery(int bat) {

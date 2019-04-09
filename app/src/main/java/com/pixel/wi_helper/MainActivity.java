@@ -13,6 +13,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -20,9 +21,13 @@ public class MainActivity extends AppCompatActivity {
     private static final int CONF_PWRSAV_VIDEO = 2;
 
     private TextView textView;
-
-
     private MainService.MBinder mBinder;
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        Log.d("new intent","welcome back");
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -158,10 +163,14 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-
+            Toast.makeText(MainActivity.this,"Stop service",Toast.LENGTH_SHORT).show();
         }
     };
 
+    private void stopMainService(){
+        stopService(new Intent(this,MainService.class));
+        unbindService(connection);
+    }
     @SuppressWarnings("ConstantConditions")
     private void setCodecByMode(int mode) {
         //default

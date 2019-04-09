@@ -18,6 +18,17 @@ public class BatteryTimer {
     private int target;
     private Timer timer;
 
+    public int getSec() {
+        return sec;
+    }
+
+
+    public int getTarget() {
+        return target;
+    }
+
+
+
     public int getDurationSec100() {
         return durationSec100;
     }
