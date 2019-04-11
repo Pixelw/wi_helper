@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothCodecConfig;
+import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.ContentValues;
@@ -32,7 +33,8 @@ public class MainService extends Service {
     private BatteryTimer helper;
     private boolean BATTERY_TESTING = false;
     private BluetoothCodecConfig testingConfig;
-    private int previousBattLevel = -100;
+    private MainActivity.ABinder aBinder;
+   // private int previousBattLevel = -100;
 
     public MainService() {
     }
@@ -46,17 +48,18 @@ public class MainService extends Service {
         IntentFilter btEventFilter = new IntentFilter();
         btEventFilter.addAction(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED);
         btEventFilter.addAction(BluetoothDevice.ACTION_BATTERY_LEVEL_CHANGED);
+        btEventFilter.addAction(BluetoothA2dp.ACTION_CODEC_CONFIG_CHANGED);
         registerReceiver(btEventReceiver, btEventFilter);
 
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         IntentFilter toolbarActionFilter = new IntentFilter();
-        toolbarActionFilter.addAction("SET_QUALITY");
+        toolbarActionFilter.addAction("com.pixel.wi_helper.SET_QUALITY");
         registerReceiver(toolbarActionReceiver, toolbarActionFilter);
         remoteViews = new RemoteViews(getPackageName(), R.layout.rtoolbar_layout);
         remoteViews.setOnClickPendingIntent(R.id.toolbarModes, PendingIntent.getBroadcast
                 (this, 0,
-                        new Intent().setAction("SET_QUALITY"), PendingIntent.FLAG_UPDATE_CURRENT));
-        Intent intent = new Intent(this, MainActivity.class);
+                        new Intent().setAction("com.pixel.wi_helper.SET_QUALITY"), PendingIntent.FLAG_UPDATE_CURRENT));
+        Intent intent = new Intent(this, TestActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         PendingIntent pi = PendingIntent.getActivity(this, 0, intent, 0);
         remoteViews.setOnClickPendingIntent(R.id.toolbarIcon, pi);
@@ -95,15 +98,24 @@ public class MainService extends Service {
                         }
                         Log.d("playingStatChange", state);
                         break;
+
                     case BluetoothDevice.ACTION_BATTERY_LEVEL_CHANGED:
                         ib = intent.getIntExtra(BluetoothDevice.EXTRA_BATTERY_LEVEL, -39);
                         Log.d("battChanged", "now:" + ib);
                         if (BATTERY_TESTING) {
                             nextTimer(ib);
                         }
-                        previousBattLevel = ib;
+                        //previousBattLevel = ib;
                         setToolbarBattery(ib);
+                        aBinder.updateActivityBattLevel(ib);
                         break;
+
+                    case BluetoothA2dp.ACTION_CODEC_CONFIG_CHANGED:
+                        BluetoothCodecStatus bsss = intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS);
+                        Log.d("codecChanged", bsss.getCodecConfig().toString());
+                        aBinder.updateActivityCodecStatus(bsss.getCodecConfig());
+                        break;
+
                     default:
                         break;
                 }
@@ -128,7 +140,7 @@ public class MainService extends Service {
                 helper.startTimer(20);
                 break;
             default:
-                helper.stopTimer(previousBattLevel == 20);
+                helper.stopTimer(true);
                 helper.save(testingConfig);
                 BATTERY_TESTING = false;
                 break;
@@ -164,13 +176,18 @@ public class MainService extends Service {
                 } else if (btConfig.getCodecName().equals("AAC")) {
                     remoteViews.setImageViewResource(R.id.toolbarModes, R.drawable.ic_battery_std_black_24dp);
                 }
-                remoteViews.setTextViewText(R.id.toolbarText, btCtrl.getMyBluetoothDevice().getName());
-                setToolbarBattery(btCtrl.getThisBatteryLevel());
+                String name =btCtrl.getMyBluetoothDevice().getName();
+                remoteViews.setTextViewText(R.id.toolbarText, name);
+                int battery = btCtrl.getThisBatteryLevel();
+                setToolbarBattery(battery);
                 if (notification != null) {
                     notificationManager.notify(1, notification);
                 } else {
                     mBinder.getBtConnected();
                 }
+                aBinder.updateActivityCodecStatus(btConfig);
+                aBinder.updateActivityName(name);
+                aBinder.updateActivityBattLevel(battery);
             }
         }
     };
@@ -212,9 +229,12 @@ public class MainService extends Service {
     }
 
     class MBinder extends Binder {
-        void testBind() {
-            Log.d("binder", "ok");
-            makeToast("Test toast");
+        void castBinder(MainActivity.ABinder binder) {
+            aBinder = binder;
+        }
+
+        void testBind(){
+            aBinder.toastOnActivity("ddfsf");
         }
 
         int getBatt() {
@@ -254,7 +274,7 @@ public class MainService extends Service {
                     int batLevel =  btCtrl.getThisBatteryLevel();
                     testingConfig = btCtrl.getBtCurrentConfig();
                     helper.startTimer(batLevel);
-                    previousBattLevel = batLevel;
+                   // previousBattLevel = batLevel;
                     BATTERY_TESTING = true;
                     makeToast("timer start at "+batLevel);
             }

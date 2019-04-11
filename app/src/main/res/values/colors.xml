@@ -13,4 +13,5 @@
     <color name="colorBlue">#B3E5FC</color>
     <color name="colorLightBlue">#E1F5FE</color>
     <color name="colorWhite">#FFFFFF</color>
+    <color name="colorBlack">#111111</color>
 </resources>
