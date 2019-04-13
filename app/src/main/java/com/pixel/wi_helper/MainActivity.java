@@ -14,7 +14,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -25,8 +24,10 @@ public class MainActivity extends AppCompatActivity {
     private ImageView imgCodecLogo;
     private TextView tvCodecName;
     private TextView tvCodecStat;
-    private int i = 0;
+    private int bluetoothDenied = 0;
     private MainService.MBinder serviceBinder;
+    private boolean exitingHelper = false;
+
 
 
     @Override
@@ -39,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                serviceBinder.testBind();
+               exitHelper();
             }
         });
 
@@ -61,24 +62,14 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             serviceBinder = (MainService.MBinder) service;
+
             ABinder aBinder = new ABinder();
             serviceBinder.castBinder(aBinder);
-            if (!serviceBinder.getBtReady()) {
-                Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                startActivityForResult(intent, 1);
-            } else {
-                if (serviceBinder.getBtConnected()){
-                    tvConnectStat.setText(R.string.connected);
-                }else{
-                    tvConnectStat.setText(R.string.nocon);
-                }
-            }
-
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-            Toast.makeText(MainActivity.this, "Stop service", Toast.LENGTH_SHORT).show();
+            Log.d("onServiceDisconnected", "onServiceDisconnected: ");
         }
     };
 
@@ -87,10 +78,13 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         unbindService(connection);
         Log.d("exit", "onDestroy: activity");
+        if (exitingHelper){
+            System.exit(0);
+        }
     }
 
     private void updateDashboard(BluetoothCodecConfig config) {
-        if (config != null){
+        if (config != null) {
             switch (config.getCodecType()) {
                 case 0:
                     tvCodecName.setText(R.string.sbc);
@@ -202,11 +196,48 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    class ABinder {
-        void toastOnActivity(String msg) {
-            Toast.makeText(MainActivity.this, msg + i, Toast.LENGTH_LONG).show();
-            i++;
+    private void updateDashboard(boolean isConnected) {
+        if (isConnected) {
+            tvConnectStat.setText(R.string.connected);
+        } else {
+            tvConnectStat.setText(R.string.nocon);
         }
+
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1) {
+            switch (resultCode) {
+                case RESULT_OK:
+                    serviceBinder.btIsNowOn();
+                    break;
+                case RESULT_CANCELED:
+                    bluetoothDenied++;
+                    if (bluetoothDenied == 5){
+                        exitHelper();
+                    }else {
+                        Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                        startActivityForResult(intent, 1);
+                    }
+
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    private void exitHelper() {
+        exitingHelper = true;
+        Intent stopIntent = new Intent(this,MainService.class);
+        stopService(stopIntent);
+        finish();
+        //unbind progress is scheduled in onDestory()
+    }
+
+    class ABinder {
 
         void updateActivityCodecStatus(BluetoothCodecConfig config) {
             updateDashboard(config);
@@ -216,8 +247,17 @@ public class MainActivity extends AppCompatActivity {
             updateDashboard(level);
         }
 
-        void updateActivityName(String name) {
+        void updateActivityDeviceName(String name) {
             tvDeviceName.setText(name);
+        }
+
+        void turnBluetoothOn() {
+            Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(intent, 1);
+        }
+
+        void updateActivityConnStat(boolean isConn) {
+            updateDashboard(isConn);
         }
     }
 }

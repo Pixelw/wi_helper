@@ -34,6 +34,9 @@ public class MainService extends Service {
     private boolean BATTERY_TESTING = false;
     private BluetoothCodecConfig testingConfig;
     private MainActivity.ABinder aBinder;
+    private boolean pendingTurnBtON = true;
+    private boolean deviceIsConnected = false;
+    private boolean serviceIsRunning = false;
    // private int previousBattLevel = -100;
 
     public MainService() {
@@ -59,7 +62,7 @@ public class MainService extends Service {
         remoteViews.setOnClickPendingIntent(R.id.toolbarModes, PendingIntent.getBroadcast
                 (this, 0,
                         new Intent().setAction("com.pixel.wi_helper.SET_QUALITY"), PendingIntent.FLAG_UPDATE_CURRENT));
-        Intent intent = new Intent(this, TestActivity.class);
+        Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         PendingIntent pi = PendingIntent.getActivity(this, 0, intent, 0);
         remoteViews.setOnClickPendingIntent(R.id.toolbarIcon, pi);
@@ -67,6 +70,27 @@ public class MainService extends Service {
         IntentFilter a2dpFilter = new IntentFilter();
         a2dpFilter.addAction("com.pixel.wi_helper.A2DP_READY");
         registerReceiver(a2dpReceiver, a2dpFilter);
+        initBluetooth();
+    }
+
+    private void initBluetooth(){
+
+        if (btCtrl.daoGetBtOn()){
+            pendingTurnBtON = false;
+            if (btCtrl.daoGetBtConnected()){
+                setNotification();
+                deviceIsConnected = true;
+            }else {
+                deviceIsConnected  = false;
+            }
+        }else{// bluetooth is off
+            if (aBinder == null){ //first start, abinder is not instant yet.
+                pendingTurnBtON = true; //a pending flag
+            }else {
+                aBinder.turnBluetoothOn();
+            }
+
+        }
     }
 
     private BroadcastReceiver btEventReceiver = new BroadcastReceiver() {
@@ -115,7 +139,6 @@ public class MainService extends Service {
                         Log.d("codecChanged", bsss.getCodecConfig().toString());
                         aBinder.updateActivityCodecStatus(bsss.getCodecConfig());
                         break;
-
                     default:
                         break;
                 }
@@ -183,11 +206,12 @@ public class MainService extends Service {
                 if (notification != null) {
                     notificationManager.notify(1, notification);
                 } else {
-                    mBinder.getBtConnected();
+                    setNotification();
                 }
                 aBinder.updateActivityCodecStatus(btConfig);
-                aBinder.updateActivityName(name);
+                aBinder.updateActivityDeviceName(name);
                 aBinder.updateActivityBattLevel(battery);
+                serviceIsRunning = true;
             }
         }
     };
@@ -221,6 +245,7 @@ public class MainService extends Service {
         unregisterReceiver(btEventReceiver);
         unregisterReceiver(a2dpReceiver);
         Log.d("exit", "onDestroy: service");
+        makeToast("serviceStopped");
     }
 
     @Override
@@ -228,30 +253,28 @@ public class MainService extends Service {
         return mBinder;
     }
 
+
     class MBinder extends Binder {
         void castBinder(MainActivity.ABinder binder) {
             aBinder = binder;
+            if (pendingTurnBtON){
+                aBinder.turnBluetoothOn();
+            }
+            aBinder.updateActivityConnStat(deviceIsConnected);
+            if (serviceIsRunning){ //refresh when resume
+                aBinder.updateActivityCodecStatus(btCtrl.getBtCurrentConfig());
+                aBinder.updateActivityBattLevel(btCtrl.getThisBatteryLevel());
+                aBinder.updateActivityDeviceName(btCtrl.getMyBluetoothDevice().getName());
+            }
         }
 
-        void testBind(){
-            aBinder.toastOnActivity("ddfsf");
-        }
 
         int getBatt() {
             return btCtrl.getThisBatteryLevel();
         }
 
-        boolean getBtReady() {
-            return btCtrl.daoGetBtOn();
-        }
-
-        boolean getBtConnected() {
-            if (btCtrl.daoGetBtConnected()) {
-                setNotification();
-                return true;
-            } else {
-                return false;
-            }
+        void btIsNowOn() {
+            initBluetooth();
         }
 
         ContentValues getCurrentCodec() {
@@ -327,7 +350,7 @@ public class MainService extends Service {
         if (notification != null) {
             notificationManager.notify(1, notification);
         } else {
-            mBinder.getBtConnected();
+            setNotification();
         }
 
     }
