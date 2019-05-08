@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="codecs">
+        <item>SBC</item>
+        <item>AAC</item>
+        <item>Apt-X</item>
+        <item>Apt-X HD</item>
+        <item>LDAC</item>
+    </string-array>
+
+    <string-array name="samplingRates">
+        <item>44.1kHz</item>
+        <item>48kHz</item>
+        <item>88.2kHz</item>
+        <item>96kHz</item>
+    </string-array>
+
+    <string-array name="bitsPerSample">
+        <item>16bit</item>
+        <item>24bit</item>
+        <item>32bit</item>
+    </string-array>
+
+    <string-array name="LDACQuality">
+        <item>Auto</item>
+        <item>Quality Priority</item>
+        <item>Balanced</item>
+        <item>Connection Priority</item>
+    </string-array>
+</resources>

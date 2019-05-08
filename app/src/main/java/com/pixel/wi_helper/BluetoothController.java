@@ -25,34 +25,34 @@ class BluetoothController {
     private BluetoothDevice myBluetoothDevice;
     private String myDeviceAddress;
 
-    boolean daoGetBtOn(){
+    boolean daoGetBtOn() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mBluetoothAdapter.isEnabled()){
+        if (mBluetoothAdapter.isEnabled()) {
             initBluetoothClasses();
             getBoundedBtDevices();
             myBluetoothDevice = mBluetoothAdapter.getRemoteDevice(myDeviceAddress);
             return true;
-        }else {
+        } else {
             return false;
         }
     }
 
-    boolean daoGetBtConnected(){
+    boolean daoIsConnected() {
         return myBluetoothDevice.isConnected();
     }
 
-    int getThisBatteryLevel(){
-        if (myBluetoothDevice != null){
+    int getThisBatteryLevel() {
+        if (myBluetoothDevice != null) {
             int a = myBluetoothDevice.getBatteryLevel();
-            Log.d("C:getBatt?", "getThisBatteryLevel: "+a);
+            Log.d("C:getBattery?", "getThisBatteryLevel: " + a);
             return a;
-        }else{
+        } else {
             return -2;
         }
 
     }
 
-    int isPlaying(){
+    int isPlaying() {
         if (myBluetoothDevice.isConnected()) {
             if (mBluetoothA2dp.isA2dpPlaying(myBluetoothDevice)) {
                 return 2;//playing
@@ -63,6 +63,7 @@ class BluetoothController {
             return 0;//not connected
         }
     }
+
     private void initBluetoothClasses() {
         //checked, bt is on..
         BluetoothProfile.ServiceListener mListener = new BluetoothProfile.ServiceListener() {
@@ -70,9 +71,9 @@ class BluetoothController {
             public void onServiceConnected(int profile, BluetoothProfile proxy) {
                 if (profile == BluetoothProfile.A2DP) {
                     mBluetoothA2dp = (BluetoothA2dp) proxy;
-                    if (mBluetoothA2dp == null){
+                    if (mBluetoothA2dp == null) {
                         Log.d("a2dp", "null??");
-                    }else {
+                    } else {
                         Intent intent = new Intent("com.pixel.wi_helper.A2DP_READY");
                         getApplicationContext().sendBroadcast(intent);
                         Log.d("a2dp", "a2dp is ok");
@@ -127,7 +128,7 @@ class BluetoothController {
         }
     }
 
-    void setCodecByMode(int mode) {
+    void setCodecByPreset(int preset) {
         //default
         int codecType = BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC;
         int codecPriority = BluetoothCodecConfig.CODEC_PRIORITY_DEFAULT;
@@ -139,7 +140,7 @@ class BluetoothController {
         long codecSpecific3Value = 0;
         long codecSpecific4Value = 0;
 
-        switch (mode) {
+        switch (preset) {
             case 1: //hq music
                 codecType = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC;
                 codecPriority = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
@@ -151,7 +152,7 @@ class BluetoothController {
                 codecSpecific3Value = 0;
                 codecSpecific4Value = 0;
                 break;
-            case 2://video or powersaving
+            case 2://video or power saving
                 codecType = BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC;
                 codecPriority = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
                 sampleRate = BluetoothCodecConfig.SAMPLE_RATE_48000;
@@ -172,8 +173,10 @@ class BluetoothController {
                         codecSpecific4Value);
 
         setBtCodecConfig(config);
+
     }
-    void closeProfile(){
+
+    void closeProfile() {
         mBluetoothAdapter.closeProfileProxy(BluetoothProfile.A2DP, mBluetoothA2dp);
     }
 

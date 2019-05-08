@@ -22,12 +22,9 @@ public class BatteryTimer {
         return sec;
     }
 
-
     public int getTarget() {
         return target;
     }
-
-
 
     public int getDurationSec100() {
         return durationSec100;

@@ -12,8 +12,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -24,6 +26,9 @@ public class MainActivity extends AppCompatActivity {
     private ImageView imgCodecLogo;
     private TextView tvCodecName;
     private TextView tvCodecStat;
+    private ImageView imgSetHQ;
+    private ImageView imgSetPowersaving;
+    private Button btnTest;
     private int bluetoothDenied = 0;
     private MainService.MBinder serviceBinder;
     private boolean exitingHelper = false;
@@ -51,11 +56,35 @@ public class MainActivity extends AppCompatActivity {
         imgCodecLogo = findViewById(R.id.ac_codecLogo);
         tvCodecName = findViewById(R.id.ac_codecText);
         tvCodecStat = findViewById(R.id.ac_codecStatus);
+        imgSetHQ = findViewById(R.id.ac_codecHq);
+        imgSetPowersaving = findViewById(R.id.ac_codecBatt);
+        btnTest = findViewById(R.id.btnTest);
 
         Intent startIntent = new Intent(this, MainService.class);
         startService(startIntent);
         final Intent bindIntent = new Intent(getApplicationContext(), MainService.class);
         bindService(bindIntent, connection, BIND_AUTO_CREATE);
+
+        btnTest.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(MainActivity.this,
+                        String.valueOf(serviceBinder.deviceIsConnected()),Toast.LENGTH_LONG).show();
+            }
+        });
+        imgSetHQ.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                serviceBinder.setCodecByPreset(1);
+            }
+        });
+
+        imgSetPowersaving.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                serviceBinder.setCodecByPreset(2);
+            }
+        });
     }
 
     private ServiceConnection connection = new ServiceConnection() {
@@ -234,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
         Intent stopIntent = new Intent(this,MainService.class);
         stopService(stopIntent);
         finish();
-        //unbind progress is scheduled in onDestory()
+        //unbind progress is scheduled in onDestroy()
     }
 
     class ABinder {

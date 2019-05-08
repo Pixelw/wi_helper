@@ -20,8 +20,30 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.View;
 import android.widget.RemoteViews;
 import android.widget.Toast;
+
+import java.util.Timer;
+import java.util.TimerTask;
+
+
+/*
+以下是业余注释：
+服务的启动顺序笔记（防止自己再乱掉）：
+
+onCreate():这里一般由startService启动
+初始化蓝牙控制器btCtrl；
+计时器辅助类helper；
+创建意图过滤器btEventListener，和接收器组成以接收所有蓝牙事件；
+创建远程视图，工具栏用，还有工具栏的操作监听；
+/初始化蓝牙过程，会设置蓝牙是否开启和设备是否已经连接的标志，供后面判断
+
+onstartcommand(),onBind()都没有代码执行，目的是利用oC只在第一次启动的时候处理启动逻辑，避免重复；
+
+
+*/
+
 
 public class MainService extends Service {
 
@@ -37,7 +59,7 @@ public class MainService extends Service {
     private boolean pendingTurnBtON = true;
     private boolean deviceIsConnected = false;
     private boolean serviceIsRunning = false;
-   // private int previousBattLevel = -100;
+    // private int previousBattLevel = -100;
 
     public MainService() {
     }
@@ -56,12 +78,17 @@ public class MainService extends Service {
 
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         IntentFilter toolbarActionFilter = new IntentFilter();
-        toolbarActionFilter.addAction("com.pixel.wi_helper.SET_QUALITY");
+        toolbarActionFilter.addAction("com.pixel.wi_helper.hqOnClick");
+        toolbarActionFilter.addAction("com.pixel.wi_helper.pwsOnClick");
         registerReceiver(toolbarActionReceiver, toolbarActionFilter);
         remoteViews = new RemoteViews(getPackageName(), R.layout.rtoolbar_layout);
-        remoteViews.setOnClickPendingIntent(R.id.toolbarModes, PendingIntent.getBroadcast
+        remoteViews.setOnClickPendingIntent(R.id.toolbarHQ, PendingIntent.getBroadcast
                 (this, 0,
-                        new Intent().setAction("com.pixel.wi_helper.SET_QUALITY"), PendingIntent.FLAG_UPDATE_CURRENT));
+                        new Intent().setAction("com.pixel.wi_helper.hqOnClick"), PendingIntent.FLAG_UPDATE_CURRENT));
+        remoteViews.setOnClickPendingIntent(R.id.toolbarPwrs, PendingIntent.getBroadcast
+                (this, 0,
+                        new Intent().setAction("com.pixel.wi_helper.pwsOnClick"), PendingIntent.FLAG_UPDATE_CURRENT));
+
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         PendingIntent pi = PendingIntent.getActivity(this, 0, intent, 0);
@@ -71,25 +98,21 @@ public class MainService extends Service {
         a2dpFilter.addAction("com.pixel.wi_helper.A2DP_READY");
         registerReceiver(a2dpReceiver, a2dpFilter);
         initBluetooth();
+        setNotification();
+        makeToast("WI-Helper Start");
     }
 
-    private void initBluetooth(){
+    private void initBluetooth() {
 
-        if (btCtrl.daoGetBtOn()){
+        if (btCtrl.daoGetBtOn()) {
             pendingTurnBtON = false;
-            if (btCtrl.daoGetBtConnected()){
-                setNotification();
-                deviceIsConnected = true;
-            }else {
-                deviceIsConnected  = false;
-            }
-        }else{// bluetooth is off
-            if (aBinder == null){ //first start, abinder is not instant yet.
+            deviceIsConnected = btCtrl.daoIsConnected();
+        } else {// bluetooth is off
+            if (aBinder == null) { //first start, abinder is not instant yet.
                 pendingTurnBtON = true; //a pending flag
-            }else {
+            } else {
                 aBinder.turnBluetoothOn();
             }
-
         }
     }
 
@@ -135,10 +158,13 @@ public class MainService extends Service {
                         break;
 
                     case BluetoothA2dp.ACTION_CODEC_CONFIG_CHANGED:
-                        BluetoothCodecStatus bsss = intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS);
-                        Log.d("codecChanged", bsss.getCodecConfig().toString());
-                        aBinder.updateActivityCodecStatus(bsss.getCodecConfig());
+                        BluetoothCodecStatus codecStatus = intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS);
+                        Log.d("codecChanged", codecStatus.getCodecConfig().toString());
+                        aBinder.updateActivityCodecStatus(codecStatus.getCodecConfig());
+                        remoteViews.setTextViewText(R.id.toolbarStat,configToDesc(codecStatus.getCodecConfig()));
+                        notificationManager.notify(1,notification);
                         break;
+
                     default:
                         break;
                 }
@@ -174,17 +200,19 @@ public class MainService extends Service {
     private BroadcastReceiver toolbarActionReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            BluetoothCodecConfig config = btCtrl.getBtCurrentConfig();
-            if (config != null) {
-                if (config.getCodecName().equals("LDAC")) {
-                    remoteViews.setImageViewResource(R.id.toolbarModes, R.drawable.ic_battery_std_black_24dp);
-                    notificationManager.notify(1, notification);
-                    btCtrl.setCodecByMode(2);
-                } else if (config.getSampleRate() != 1) {
-                    remoteViews.setImageViewResource(R.id.toolbarModes, R.drawable.ic_high_quality_black_24dp);
-                    notificationManager.notify(1, notification);
-                    btCtrl.setCodecByMode(1);
-                }
+            String action = intent.getAction();
+            switch (action) {
+                case "com.pixel.wi_helper.hqOnClick":
+                    btCtrl.setCodecByPreset(1);
+                    switchToggle(1);
+                    break;
+                case "com.pixel.wi_helper.pwsOnClick":
+                    btCtrl.setCodecByPreset(2);
+                    switchToggle(2);
+                    break;
+                default:
+                    break;
+
             }
         }
     };
@@ -194,12 +222,14 @@ public class MainService extends Service {
         public void onReceive(Context context, Intent intent) {
             BluetoothCodecConfig btConfig = btCtrl.getBtCurrentConfig();
             if (btConfig != null) {
-                if (btConfig.getSampleRate() == 1) {
-                    remoteViews.setImageViewResource(R.id.toolbarModes, R.drawable.ic_high_quality_black_24dp);
-                } else if (btConfig.getCodecName().equals("AAC")) {
-                    remoteViews.setImageViewResource(R.id.toolbarModes, R.drawable.ic_battery_std_black_24dp);
+                if (btConfig.getSampleRate() == BluetoothCodecConfig.SAMPLE_RATE_44100) {
+                    switchToggle(1);
+                } else if (btConfig.getCodecType() == BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC) {
+                    switchToggle(2);
+                }else{
+                    switchToggle(0);
                 }
-                String name =btCtrl.getMyBluetoothDevice().getName();
+                String name = btCtrl.getMyBluetoothDevice().getName();
                 remoteViews.setTextViewText(R.id.toolbarText, name);
                 int battery = btCtrl.getThisBatteryLevel();
                 setToolbarBattery(battery);
@@ -229,6 +259,17 @@ public class MainService extends Service {
                 .setCustomContentView(remoteViews)
                 .build();
         startForeground(1, notification);
+        final Timer notifiCancelTimer = new Timer();
+        TimerTask timerTask = new TimerTask() {
+            @Override
+            public void run() {
+                if (!deviceIsConnected) {
+                    stopForeground(true);
+                }
+
+            }
+        };
+        notifiCancelTimer.schedule(timerTask, 10000);
     }
 
     @Override
@@ -257,11 +298,11 @@ public class MainService extends Service {
     class MBinder extends Binder {
         void castBinder(MainActivity.ABinder binder) {
             aBinder = binder;
-            if (pendingTurnBtON){
+            if (pendingTurnBtON) {
                 aBinder.turnBluetoothOn();
             }
             aBinder.updateActivityConnStat(deviceIsConnected);
-            if (serviceIsRunning){ //refresh when resume
+            if (serviceIsRunning) { //refresh when resume
                 aBinder.updateActivityCodecStatus(btCtrl.getBtCurrentConfig());
                 aBinder.updateActivityBattLevel(btCtrl.getThisBatteryLevel());
                 aBinder.updateActivityDeviceName(btCtrl.getMyBluetoothDevice().getName());
@@ -275,6 +316,10 @@ public class MainService extends Service {
 
         void btIsNowOn() {
             initBluetooth();
+        }
+
+        boolean deviceIsConnected() {
+            return btCtrl.daoIsConnected();
         }
 
         ContentValues getCurrentCodec() {
@@ -294,12 +339,12 @@ public class MainService extends Service {
             if (helper.isStarted()) {
                 makeToast("timer is running");
             } else {
-                    int batLevel =  btCtrl.getThisBatteryLevel();
-                    testingConfig = btCtrl.getBtCurrentConfig();
-                    helper.startTimer(batLevel);
-                   // previousBattLevel = batLevel;
-                    BATTERY_TESTING = true;
-                    makeToast("timer start at "+batLevel);
+                int batLevel = btCtrl.getThisBatteryLevel();
+                testingConfig = btCtrl.getBtCurrentConfig();
+                helper.startTimer(batLevel);
+                // previousBattLevel = batLevel;
+                BATTERY_TESTING = true;
+                makeToast("timer start at " + batLevel);
             }
         }
 
@@ -313,6 +358,10 @@ public class MainService extends Service {
 
         void setCodec(BluetoothCodecConfig config) {
             btCtrl.setBtCodecConfig(config);
+        }
+
+        void setCodecByPreset(int i) {
+            btCtrl.setCodecByPreset(i);
         }
 
         int isPlaying() {
@@ -353,6 +402,96 @@ public class MainService extends Service {
             setNotification();
         }
 
+    }
+
+    private void switchToggle(int status) {
+        switch (status) {
+            case 1:
+                remoteViews.setViewVisibility(R.id.toolbarPwrsBg, View.INVISIBLE);
+                remoteViews.setViewVisibility(R.id.toolbarHQBg, View.VISIBLE);
+                remoteViews.setTextViewText(R.id.toolbarHQ, "");
+                remoteViews.setTextViewText(R.id.toolbarPwrs, getString(R.string.quality));
+                remoteViews.setTextViewText(R.id.toolbarModesBg,"");
+                break;
+            case 2:
+                remoteViews.setViewVisibility(R.id.toolbarPwrsBg, View.VISIBLE);
+                remoteViews.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
+                remoteViews.setTextViewText(R.id.toolbarHQ, getString(R.string.stable));
+                remoteViews.setTextViewText(R.id.toolbarPwrs, "");
+                remoteViews.setTextViewText(R.id.toolbarModesBg,"");
+                break;
+            default:
+                remoteViews.setViewVisibility(R.id.toolbarPwrsBg, View.INVISIBLE);
+                remoteViews.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
+                remoteViews.setTextViewText(R.id.toolbarHQ, "");
+                remoteViews.setTextViewText(R.id.toolbarPwrs, "");
+                remoteViews.setTextViewText(R.id.toolbarModesBg,getString(R.string.other));
+                break;
+        }
+        if (notification != null) {
+            notificationManager.notify(1, notification);
+        }
+    }
+
+    private String configToDesc(BluetoothCodecConfig config) {
+        if (config != null) {
+            String ldacq;
+            String sampler;
+            String bitd;
+            String codec = config.getCodecName();
+            switch ((int) config.getCodecSpecific1()) {
+                case 1000:
+                    ldacq = "High";
+                    break;
+                case 1001:
+                    ldacq = "Med";
+                    break;
+                case 1002:
+                    ldacq = "Low";
+                    break;
+                case 1003:
+                    ldacq = "Auto";
+                    break;
+                default:
+                    ldacq = "";
+                    break;
+            }
+
+            switch (config.getSampleRate()) {
+                case 1:
+                    sampler = "44.1kHz";
+                    break;
+                case 2:
+                    sampler = "48kHz";
+                    break;
+                case 4:
+                    sampler = "88.2kHz";
+                    break;
+                case 8:
+                    sampler = "96kHz";
+                    break;
+                default:
+                    sampler = "";
+                    break;
+            }
+
+            switch (config.getBitsPerSample()) {
+                case 1:
+                    bitd = "16bit";
+                    break;
+                case 2:
+                    bitd = "24bit";
+                    break;
+                case 4:
+                    bitd = "32bit";
+                    break;
+                default:
+                    bitd = "";
+                    break;
+            }
+            return codec+ " "+ sampler + " " + bitd + " " + ldacq;
+        }
+        return getString(R.string.unknownCodecConfig);
     }
 
     private void makeToast(final String msg) {
