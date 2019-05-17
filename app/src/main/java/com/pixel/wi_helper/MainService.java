@@ -56,7 +56,8 @@ public class MainService extends Service {
     private boolean BATTERY_TESTING = false;
     private BluetoothCodecConfig testingConfig;
     private MainActivity.ABinder aBinder;
-    private boolean pendingTurnBtON = true;
+    private int pendingActivityAction = 0;
+
     private boolean deviceIsConnected = false;
     private boolean serviceIsRunning = false;
     // private int previousBattLevel = -100;
@@ -103,16 +104,29 @@ public class MainService extends Service {
     }
 
     private void initBluetooth() {
+        switch (btCtrl.bluetoothStatus()) {
+            case 1:
+                pendingActivityAction = 0;
+                deviceIsConnected = btCtrl.daoIsConnected();
+                break;
+            case 0:
+                if (aBinder == null) { //first start, abinder is not instant yet.
+                    pendingActivityAction = 1; //a pending flag
+                } else {
+                    aBinder.turnBluetoothOn();
+                }
+                break;
+            case -1:
+                // device not found
+                if (aBinder == null) {
+                    pendingActivityAction = 2;
+                } else {
+                    aBinder.targetDeviceNotFound();
+                }
 
-        if (btCtrl.daoGetBtOn()) {
-            pendingTurnBtON = false;
-            deviceIsConnected = btCtrl.daoIsConnected();
-        } else {// bluetooth is off
-            if (aBinder == null) { //first start, abinder is not instant yet.
-                pendingTurnBtON = true; //a pending flag
-            } else {
-                aBinder.turnBluetoothOn();
-            }
+                break;
+            default:
+                break;
         }
     }
 
@@ -161,8 +175,8 @@ public class MainService extends Service {
                         BluetoothCodecStatus codecStatus = intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS);
                         Log.d("codecChanged", codecStatus.getCodecConfig().toString());
                         aBinder.updateActivityCodecStatus(codecStatus.getCodecConfig());
-                        remoteViews.setTextViewText(R.id.toolbarStat,configToDesc(codecStatus.getCodecConfig()));
-                        notificationManager.notify(1,notification);
+                        remoteViews.setTextViewText(R.id.toolbarStat, configToDesc(codecStatus.getCodecConfig()));
+                        notificationManager.notify(1, notification);
                         break;
 
                     default:
@@ -222,22 +236,18 @@ public class MainService extends Service {
         public void onReceive(Context context, Intent intent) {
             BluetoothCodecConfig btConfig = btCtrl.getBtCurrentConfig();
             if (btConfig != null) {
+                remoteViews.setTextViewText(R.id.toolbarStat, configToDesc(btConfig));
                 if (btConfig.getSampleRate() == BluetoothCodecConfig.SAMPLE_RATE_44100) {
                     switchToggle(1);
                 } else if (btConfig.getCodecType() == BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC) {
                     switchToggle(2);
-                }else{
+                } else {
                     switchToggle(0);
                 }
                 String name = btCtrl.getMyBluetoothDevice().getName();
                 remoteViews.setTextViewText(R.id.toolbarText, name);
                 int battery = btCtrl.getThisBatteryLevel();
                 setToolbarBattery(battery);
-                if (notification != null) {
-                    notificationManager.notify(1, notification);
-                } else {
-                    setNotification();
-                }
                 aBinder.updateActivityCodecStatus(btConfig);
                 aBinder.updateActivityDeviceName(name);
                 aBinder.updateActivityBattLevel(battery);
@@ -281,6 +291,7 @@ public class MainService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+
         btCtrl.closeProfile();
         unregisterReceiver(toolbarActionReceiver);
         unregisterReceiver(btEventReceiver);
@@ -298,9 +309,17 @@ public class MainService extends Service {
     class MBinder extends Binder {
         void castBinder(MainActivity.ABinder binder) {
             aBinder = binder;
-            if (pendingTurnBtON) {
-                aBinder.turnBluetoothOn();
+            switch (pendingActivityAction) {
+                case 1:
+                    aBinder.turnBluetoothOn();
+                    break;
+                case 2:
+                    aBinder.targetDeviceNotFound();
+                    break;
+                default:
+                    break;
             }
+
             aBinder.updateActivityConnStat(deviceIsConnected);
             if (serviceIsRunning) { //refresh when resume
                 aBinder.updateActivityCodecStatus(btCtrl.getBtCurrentConfig());
@@ -411,21 +430,21 @@ public class MainService extends Service {
                 remoteViews.setViewVisibility(R.id.toolbarHQBg, View.VISIBLE);
                 remoteViews.setTextViewText(R.id.toolbarHQ, "");
                 remoteViews.setTextViewText(R.id.toolbarPwrs, getString(R.string.quality));
-                remoteViews.setTextViewText(R.id.toolbarModesBg,"");
+                remoteViews.setTextViewText(R.id.toolbarModesBg, "");
                 break;
             case 2:
                 remoteViews.setViewVisibility(R.id.toolbarPwrsBg, View.VISIBLE);
                 remoteViews.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
                 remoteViews.setTextViewText(R.id.toolbarHQ, getString(R.string.stable));
                 remoteViews.setTextViewText(R.id.toolbarPwrs, "");
-                remoteViews.setTextViewText(R.id.toolbarModesBg,"");
+                remoteViews.setTextViewText(R.id.toolbarModesBg, "");
                 break;
             default:
                 remoteViews.setViewVisibility(R.id.toolbarPwrsBg, View.INVISIBLE);
                 remoteViews.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
                 remoteViews.setTextViewText(R.id.toolbarHQ, "");
                 remoteViews.setTextViewText(R.id.toolbarPwrs, "");
-                remoteViews.setTextViewText(R.id.toolbarModesBg,getString(R.string.other));
+                remoteViews.setTextViewText(R.id.toolbarModesBg, getString(R.string.other));
                 break;
         }
         if (notification != null) {
@@ -489,7 +508,7 @@ public class MainService extends Service {
                     bitd = "";
                     break;
             }
-            return codec+ " "+ sampler + " " + bitd + " " + ldacq;
+            return codec + " " + sampler + " " + bitd + " " + ldacq;
         }
         return getString(R.string.unknownCodecConfig);
     }

@@ -26,4 +26,9 @@
     <string name="quality">Quality</string>
     <string name="stable">Stable</string>
     <string name="other">Other</string>
+    <string name="titlepair">No headphones found</string>
+    <string name="dialogtext">No supported headphones found. Please go to Bluetooth setting and pair your headphones first.</string>
+    <string name="gotoset">Go to settings</string>
+    <string name="exit">Exit</string>
+    <string name="set">Set</string>
 </resources>

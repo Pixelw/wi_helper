@@ -3,8 +3,8 @@
     <string-array name="codecs">
         <item>SBC</item>
         <item>AAC</item>
-        <item>Apt-X</item>
-        <item>Apt-X HD</item>
+        <item>apt-X</item>
+        <item>apt-X HD</item>
         <item>LDAC</item>
     </string-array>
 

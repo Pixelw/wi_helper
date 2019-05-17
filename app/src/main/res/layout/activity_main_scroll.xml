@@ -20,15 +20,18 @@
             android:layout_height="match_parent"
             android:fitsSystemWindows="true"
             app:contentScrim="?attr/colorPrimary"
-            app:layout_scrollFlags="exitUntilCollapsed"
-            app:toolbarId="@+id/toolbar">
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            app:toolbarId="@+id/toolbar"
+            >
             <ImageView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:id="@+id/banner_bg"
                 android:scaleType="centerCrop"
                 app:layout_collapseMode="parallax"
-                android:src="@drawable/banner"/>
+                android:src="@mipmap/h700s1080"
+                android:tintMode="multiply"
+                android:tint="@color/primaryColor"/>
 
             <android.support.v7.widget.Toolbar
                 android:id="@+id/toolbar"

@@ -17,23 +17,28 @@ class BluetoothController {
     private BluetoothA2dp mBluetoothA2dp;
     private final Object mBluetoothA2dpLock = new Object();
     private BluetoothAdapter mBluetoothAdapter;
+    private boolean a2dpIsOn;
 
     BluetoothDevice getMyBluetoothDevice() {
         return myBluetoothDevice;
     }
 
     private BluetoothDevice myBluetoothDevice;
-    private String myDeviceAddress;
+    private String myDeviceAddress = "null";
 
-    boolean daoGetBtOn() {
+    int bluetoothStatus() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter.isEnabled()) {
-            initBluetoothClasses();
             getBoundedBtDevices();
-            myBluetoothDevice = mBluetoothAdapter.getRemoteDevice(myDeviceAddress);
-            return true;
+            if (myDeviceAddress.equals("null")) {
+                return -1;//device not found
+            } else {
+                myBluetoothDevice = mBluetoothAdapter.getRemoteDevice(myDeviceAddress);
+                initBluetoothClasses();
+                return 1;//ok
+            }
         } else {
-            return false;
+            return 0;//bluetooth is off
         }
     }
 
@@ -76,6 +81,7 @@ class BluetoothController {
                     } else {
                         Intent intent = new Intent("com.pixel.wi_helper.A2DP_READY");
                         getApplicationContext().sendBroadcast(intent);
+                        a2dpIsOn = true;
                         Log.d("a2dp", "a2dp is ok");
                     }
                 }
@@ -99,6 +105,7 @@ class BluetoothController {
                 if (bluetoothDevice.getName().contains("WI-H700")) {
                     myDeviceAddress = bluetoothDevice.getAddress();
                     Log.d("WIH_FOUND", "found WI-H700");
+                    break;
                 }
             }
         }
@@ -177,7 +184,9 @@ class BluetoothController {
     }
 
     void closeProfile() {
-        mBluetoothAdapter.closeProfileProxy(BluetoothProfile.A2DP, mBluetoothA2dp);
+        if (a2dpIsOn){
+            mBluetoothAdapter.closeProfileProxy(BluetoothProfile.A2DP, mBluetoothA2dp);
+        }
     }
 
 }

@@ -3,17 +3,22 @@ package com.pixel.wi_helper;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothCodecConfig;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,14 +30,20 @@ public class MainActivity extends AppCompatActivity {
     private ImageView imgBattery;
     private ImageView imgCodecLogo;
     private TextView tvCodecName;
-    private TextView tvCodecStat;
+    private TextView tvCodecStat1;
+    private TextView tvCodecStat2;
     private ImageView imgSetHQ;
     private ImageView imgSetPowersaving;
-    private Button btnTest;
+    private Button btnSetCodec;
     private int bluetoothDenied = 0;
     private MainService.MBinder serviceBinder;
     private boolean exitingHelper = false;
-
+    private Spinner codecsSpinner;
+    private Spinner samplingSpinner;
+    private Spinner bitSpinner;
+    private int selectCodecIndex = 0;
+    private int selectSamplingIndex = 1;
+    private int selectBitIndex = 1;
 
 
     @Override
@@ -45,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-               exitHelper();
+                exitHelper();
             }
         });
 
@@ -55,21 +66,28 @@ public class MainActivity extends AppCompatActivity {
         imgBattery = findViewById(R.id.ac_battMeter);
         imgCodecLogo = findViewById(R.id.ac_codecLogo);
         tvCodecName = findViewById(R.id.ac_codecText);
-        tvCodecStat = findViewById(R.id.ac_codecStatus);
+        tvCodecStat1 = findViewById(R.id.ac_codecStatusLine1);
+        tvCodecStat2 = findViewById(R.id.ac_codecStatusLine2);
         imgSetHQ = findViewById(R.id.ac_codecHq);
         imgSetPowersaving = findViewById(R.id.ac_codecBatt);
-        btnTest = findViewById(R.id.btnTest);
+        btnSetCodec = findViewById(R.id.btnSetCodec);
+        codecsSpinner = findViewById(R.id.ac_codecsSpinner);
+        samplingSpinner = findViewById(R.id.ac_sampleRateSpinner);
+        bitSpinner = findViewById(R.id.ac_bitsSpinner);
 
         Intent startIntent = new Intent(this, MainService.class);
         startService(startIntent);
         final Intent bindIntent = new Intent(getApplicationContext(), MainService.class);
         bindService(bindIntent, connection, BIND_AUTO_CREATE);
 
-        btnTest.setOnClickListener(new View.OnClickListener() {
+        btnSetCodec.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(MainActivity.this,
-                        String.valueOf(serviceBinder.deviceIsConnected()),Toast.LENGTH_LONG).show();
+               BluetoothCodecConfig codecConfig = new BluetoothCodecConfig(selectCodecIndex,
+                       BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST,selectSamplingIndex,
+                       selectBitIndex,BluetoothCodecConfig.CHANNEL_MODE_STEREO,
+                       1003,0,0,0);
+               serviceBinder.setCodec(codecConfig);
             }
         });
         imgSetHQ.setOnClickListener(new View.OnClickListener() {
@@ -84,6 +102,40 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 serviceBinder.setCodecByPreset(2);
             }
+        });
+        codecsSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectCodecIndex = position;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
+        });
+
+        samplingSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectSamplingIndex = position == 0 ? 1 :
+                        position == 1 ? 2 :
+                                position == 2 ? 4 :
+                                        position == 3 ? 8 : 0;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
+        });
+
+        bitSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectBitIndex = position == 0 ? 1 :
+                        position == 1 ? 2 :
+                                position == 2 ? 4 : 0;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
         });
     }
 
@@ -107,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         unbindService(connection);
         Log.d("exit", "onDestroy: activity");
-        if (exitingHelper){
+        if (exitingHelper) {
             System.exit(0);
         }
     }
@@ -116,11 +168,11 @@ public class MainActivity extends AppCompatActivity {
         if (config != null) {
             switch (config.getCodecType()) {
                 case 0:
-                    tvCodecName.setText(R.string.sbc);
+                    tvCodecName.setText("   SBC");
                     imgCodecLogo.setImageDrawable(null);
                     break;
                 case 1:
-                    tvCodecName.setText(R.string.aac);
+                    tvCodecName.setText("   AAC");
                     imgCodecLogo.setImageDrawable(null);
                     break;
                 case 2:
@@ -132,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
                     imgCodecLogo.setImageDrawable(null);
                     break;
                 case 4:
-                    imgCodecLogo.setImageResource(R.drawable.ldac);
+                    imgCodecLogo.setImageResource(R.mipmap.ldac);
                     tvCodecName.setText("");
                     break;
                 default:
@@ -144,19 +196,19 @@ public class MainActivity extends AppCompatActivity {
             String bitd;
             switch ((int) config.getCodecSpecific1()) {
                 case 1000:
-                    ldacq = "990/909kbps";
+                    ldacq = "High";
                     break;
                 case 1001:
-                    ldacq = "660/606kbps";
+                    ldacq = "Med";
                     break;
                 case 1002:
-                    ldacq = "330/303kbps";
+                    ldacq = "Low";
                     break;
                 case 1003:
-                    ldacq = "auto";
+                    ldacq = "Auto";
                     break;
                 default:
-                    ldacq = "";
+                    ldacq = "Def";
                     break;
             }
 
@@ -192,8 +244,9 @@ public class MainActivity extends AppCompatActivity {
                     bitd = "";
                     break;
             }
-            String str = sampler + " " + bitd + " " + ldacq;
-            tvCodecStat.setText(str);
+            String str = bitd + " " + ldacq;
+            tvCodecStat1.setText(sampler);
+            tvCodecStat2.setText(str);
         }
     }
 
@@ -244,9 +297,9 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case RESULT_CANCELED:
                     bluetoothDenied++;
-                    if (bluetoothDenied == 5){
+                    if (bluetoothDenied == 5) {
                         exitHelper();
-                    }else {
+                    } else {
                         Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                         startActivityForResult(intent, 1);
                     }
@@ -260,7 +313,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void exitHelper() {
         exitingHelper = true;
-        Intent stopIntent = new Intent(this,MainService.class);
+        Intent stopIntent = new Intent(this, MainService.class);
         stopService(stopIntent);
         finish();
         //unbind progress is scheduled in onDestroy()
@@ -287,6 +340,32 @@ public class MainActivity extends AppCompatActivity {
 
         void updateActivityConnStat(boolean isConn) {
             updateDashboard(isConn);
+        }
+
+        void targetDeviceNotFound() {
+            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setTitle(R.string.titlepair)
+                    .setMessage(R.string.dialogtext)
+                    .setPositiveButton(R.string.gotoset, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
+                            exitHelper();
+                        }
+                    })
+                    .setNegativeButton(R.string.exit, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            exitHelper();
+                        }
+                    })
+                    .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                        @Override
+                        public void onDismiss(DialogInterface dialog) {
+                            exitHelper();
+                        }
+                    });
+            builder.show();
         }
     }
 }

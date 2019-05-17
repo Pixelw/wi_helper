@@ -16,8 +16,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="5dp"
-        app:cardCornerRadius="4dp"
-        android:elevation="5dp">
+        app:cardCornerRadius="4dp">
 
         <android.support.constraint.ConstraintLayout
             android:layout_width="match_parent"
@@ -42,19 +41,30 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="3dp"
                 android:fontFamily="sans-serif-medium"
-                android:text=""
                 android:textColor="@color/colorPrimary"
                 android:textSize="18sp"
                 app:layout_constraintStart_toEndOf="@id/tv_device_name"
                 app:layout_constraintTop_toTopOf="@id/tv_device_name" />
 
             <ImageView
+                android:layout_width="250dp"
+                android:layout_height="250dp"
+                android:layout_marginVertical="10dp"
+                android:src="@mipmap/h700"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_device_name"
+                android:id="@+id/ac_picture" />
+
+            <ImageView
                 android:id="@+id/ac_battMeter"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                app:layout_constraintBottom_toBottomOf="@id/tv_device_name"
-                app:layout_constraintStart_toEndOf="@id/tv_connect_status"
-                app:layout_constraintTop_toTopOf="@id/tv_device_name" />
+                android:layout_marginBottom="20dp"
+                android:layout_marginStart="15dp"
+                app:layout_constraintBottom_toBottomOf="@id/ac_picture"
+                app:layout_constraintStart_toStartOf="@id/ac_picture"
+                android:elevation="5dp"/>
 
             <TextView
                 android:id="@+id/ac_battLv"
@@ -62,53 +72,53 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-condensed-medium"
                 app:layout_constraintBottom_toBottomOf="@id/ac_battMeter"
-                app:layout_constraintStart_toEndOf="@id/ac_battMeter"
+                app:layout_constraintEnd_toStartOf="@id/ac_battMeter"
                 app:layout_constraintTop_toTopOf="@id/ac_battMeter" />
 
             <LinearLayout
                 android:id="@+id/ac_codecs"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
+                android:layout_marginBottom="60dp"
+                android:layout_marginStart="230dp"
                 android:orientation="horizontal"
-                app:layout_constraintStart_toStartOf="@id/tv_device_name"
-                app:layout_constraintTop_toBottomOf="@id/tv_device_name">
+                app:layout_constraintBottom_toBottomOf="@id/ac_picture"
+                app:layout_constraintStart_toStartOf="@id/ac_picture">
 
                 <ImageView
                     android:id="@+id/ac_codecLogo"
-                    android:layout_width="50dp"
+                    android:layout_width="40dp"
                     android:layout_height="18dp"
-                    app:layout_constraintStart_toStartOf="@id/tv_device_name"
-                    app:layout_constraintTop_toBottomOf="@id/tv_device_name" />
+                    android:elevation="5dp"/>
 
                 <TextView
                     android:id="@+id/ac_codecText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="-50dp"
+                    android:layout_marginStart="-40dp"
                     android:fontFamily="sans-serif-black"
-                    android:text=""
+                    android:gravity="end"
                     android:textColor="@color/colorBlack"
-                    android:textSize="15sp" />
+                    android:textSize="15sp"/>
             </LinearLayout>
 
             <TextView
-                android:id="@+id/ac_codecStatus"
+                android:id="@+id/ac_codecStatusLine1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="3dp"
-                android:text=""
-                app:layout_constraintBottom_toBottomOf="@id/ac_codecs"
-                app:layout_constraintStart_toEndOf="@+id/ac_codecs"
-                app:layout_constraintTop_toTopOf="@id/ac_codecs" />
+                app:layout_constraintTop_toBottomOf="@id/ac_codecs"
+                app:layout_constraintEnd_toEndOf="@id/ac_codecs"
+                android:fontFamily="sans-serif-condensed"/>
 
-            <ImageView
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:layout_marginVertical="10dp"
-                android:src="@drawable/a_device_image_wi_h700_black"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/ac_codecStatusLine2"
+                app:layout_constraintTop_toBottomOf="@id/ac_codecStatusLine1"
+                app:layout_constraintEnd_toEndOf="@id/ac_codecStatusLine1"
+                android:fontFamily="sans-serif-condensed"/>
+
+
 
         </android.support.constraint.ConstraintLayout>
     </android.support.v7.widget.CardView>
@@ -138,22 +148,24 @@
                     android:layout_height="40dp"
                     android:padding="5dp"
                     android:id="@+id/ac_codecHq"
+                    android:elevation="5dp"
                     app:layout_constraintTop_toBottomOf="@id/tv_options"
                     app:layout_constraintStart_toStartOf="@id/tv_options"
                     android:layout_marginTop="5dp"
                     android:src="@drawable/ic_high_quality_black_24dp"
-                    android:background="@drawable/circle" />
+                    android:background="@drawable/circlepurple" />
                 <ImageView
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:padding="5dp"
                     android:id="@+id/ac_codecBatt"
+                    android:elevation="5dp"
                     app:layout_constraintTop_toBottomOf="@id/tv_options"
                     app:layout_constraintStart_toEndOf="@id/ac_codecHq"
                     android:layout_marginTop="5dp"
                     android:layout_marginStart="5dp"
                     android:src="@drawable/ic_battery_std_black_24dp"
-                    android:background="@drawable/circle" />
+                    android:background="@drawable/circleblue" />
                 <Spinner
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -180,10 +192,10 @@
                 <Button
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:id="@+id/btnTest"
+                    android:id="@+id/btnSetCodec"
                     app:layout_constraintTop_toBottomOf="@id/tv_options"
                     app:layout_constraintEnd_toEndOf="parent"
-                    android:text="@string/test" />
+                    android:text="@string/set" />
 
             </android.support.constraint.ConstraintLayout>
         </android.support.v7.widget.CardView>
