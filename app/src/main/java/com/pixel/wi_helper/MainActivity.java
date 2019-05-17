@@ -20,7 +20,6 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -32,15 +31,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvCodecName;
     private TextView tvCodecStat1;
     private TextView tvCodecStat2;
-    private ImageView imgSetHQ;
-    private ImageView imgSetPowersaving;
-    private Button btnSetCodec;
     private int bluetoothDenied = 0;
     private MainService.MBinder serviceBinder;
     private boolean exitingHelper = false;
-    private Spinner codecsSpinner;
-    private Spinner samplingSpinner;
-    private Spinner bitSpinner;
     private int selectCodecIndex = 0;
     private int selectSamplingIndex = 1;
     private int selectBitIndex = 1;
@@ -68,12 +61,12 @@ public class MainActivity extends AppCompatActivity {
         tvCodecName = findViewById(R.id.ac_codecText);
         tvCodecStat1 = findViewById(R.id.ac_codecStatusLine1);
         tvCodecStat2 = findViewById(R.id.ac_codecStatusLine2);
-        imgSetHQ = findViewById(R.id.ac_codecHq);
-        imgSetPowersaving = findViewById(R.id.ac_codecBatt);
-        btnSetCodec = findViewById(R.id.btnSetCodec);
-        codecsSpinner = findViewById(R.id.ac_codecsSpinner);
-        samplingSpinner = findViewById(R.id.ac_sampleRateSpinner);
-        bitSpinner = findViewById(R.id.ac_bitsSpinner);
+        ImageView imgSetHQ = findViewById(R.id.ac_codecHq);
+        ImageView imgSetPowersaving = findViewById(R.id.ac_codecBatt);
+        Button btnSetCodec = findViewById(R.id.btnSetCodec);
+        Spinner codecsSpinner = findViewById(R.id.ac_codecsSpinner);
+        Spinner samplingSpinner = findViewById(R.id.ac_sampleRateSpinner);
+        Spinner bitSpinner = findViewById(R.id.ac_bitsSpinner);
 
         Intent startIntent = new Intent(this, MainService.class);
         startService(startIntent);
@@ -168,11 +161,11 @@ public class MainActivity extends AppCompatActivity {
         if (config != null) {
             switch (config.getCodecType()) {
                 case 0:
-                    tvCodecName.setText("   SBC");
+                    tvCodecName.setText(R.string.sbc_ac);
                     imgCodecLogo.setImageDrawable(null);
                     break;
                 case 1:
-                    tvCodecName.setText("   AAC");
+                    tvCodecName.setText(R.string.aac_ac);
                     imgCodecLogo.setImageDrawable(null);
                     break;
                 case 2:
@@ -252,7 +245,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateDashboard(int bat) {
         if (bat >= 0 && bat <= 100) {
-            tvBatteryLvl.setText(bat + "%");
+            String str = bat + "%";
+            tvBatteryLvl.setText(str);
             if (bat >= 90) {
                 imgBattery.setImageResource(R.drawable.ic_battery_full_black_24dp);
             } else if (bat >= 70) {

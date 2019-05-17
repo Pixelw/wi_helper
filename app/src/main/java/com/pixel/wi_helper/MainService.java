@@ -10,7 +10,6 @@ import android.bluetooth.BluetoothCodecConfig;
 import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -215,18 +214,20 @@ public class MainService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            switch (action) {
-                case "com.pixel.wi_helper.hqOnClick":
-                    btCtrl.setCodecByPreset(1);
-                    switchToggle(1);
-                    break;
-                case "com.pixel.wi_helper.pwsOnClick":
-                    btCtrl.setCodecByPreset(2);
-                    switchToggle(2);
-                    break;
-                default:
-                    break;
+            if (action != null) {
+                switch (action) {
+                    case "com.pixel.wi_helper.hqOnClick":
+                        btCtrl.setCodecByPreset(1);
+                        switchToggle(1);
+                        break;
+                    case "com.pixel.wi_helper.pwsOnClick":
+                        btCtrl.setCodecByPreset(2);
+                        switchToggle(2);
+                        break;
+                    default:
+                        break;
 
+                }
             }
         }
     };
@@ -329,51 +330,51 @@ public class MainService extends Service {
         }
 
 
-        int getBatt() {
-            return btCtrl.getThisBatteryLevel();
-        }
+//        int getBatt() {
+//            return btCtrl.getThisBatteryLevel();
+//        }
 
         void btIsNowOn() {
             initBluetooth();
         }
 
-        boolean deviceIsConnected() {
-            return btCtrl.daoIsConnected();
-        }
+//        boolean deviceIsConnected() {
+//            return btCtrl.daoIsConnected();
+//        }
 
-        ContentValues getCurrentCodec() {
-            BluetoothCodecConfig config = btCtrl.getBtCurrentConfig();
-            ContentValues codecValues = new ContentValues();
-            if (config != null) {
-                codecValues.put("codecType", config.getCodecName());
-                codecValues.put("samplingRate", config.getSampleRate());
-                codecValues.put("bitDepth", config.getBitsPerSample());
-                codecValues.put("LDAC_quality", config.getCodecSpecific1());
-                return codecValues;
-            }
-            return null;
-        }
+//        ContentValues getCurrentCodec() {
+//            BluetoothCodecConfig config = btCtrl.getBtCurrentConfig();
+//            ContentValues codecValues = new ContentValues();
+//            if (config != null) {
+//                codecValues.put("codecType", config.getCodecName());
+//                codecValues.put("samplingRate", config.getSampleRate());
+//                codecValues.put("bitDepth", config.getBitsPerSample());
+//                codecValues.put("LDAC_quality", config.getCodecSpecific1());
+//                return codecValues;
+//            }
+//            return null;
+//        }
 
-        void startBattTest() {
-            if (helper.isStarted()) {
-                makeToast("timer is running");
-            } else {
-                int batLevel = btCtrl.getThisBatteryLevel();
-                testingConfig = btCtrl.getBtCurrentConfig();
-                helper.startTimer(batLevel);
-                // previousBattLevel = batLevel;
-                BATTERY_TESTING = true;
-                makeToast("timer start at " + batLevel);
-            }
-        }
+//        void startBattTest() {
+//            if (helper.isStarted()) {
+//                makeToast("timer is running");
+//            } else {
+//                int batLevel = btCtrl.getThisBatteryLevel();
+//                testingConfig = btCtrl.getBtCurrentConfig();
+//                helper.startTimer(batLevel);
+//                // previousBattLevel = batLevel;
+//                BATTERY_TESTING = true;
+//                makeToast("timer start at " + batLevel);
+//            }
+//        }
 
-        String showStatus() {
-            return "current Timer: " + helper.getTarget() + "%:" + helper.getSec() +
-                    "s\nsaved value:\n100%:" + helper.getDurationSec100()
-                    + "s\n70%:" + helper.getDurationSec70()
-                    + "s\n50%:" + helper.getDurationSec50()
-                    + "s\n20%:" + helper.getDurationSec20() + "s";
-        }
+//        String showStatus() {
+//            return "current Timer: " + helper.getTarget() + "%:" + helper.getSec() +
+//                    "s\nsaved value:\n100%:" + helper.getDurationSec100()
+//                    + "s\n70%:" + helper.getDurationSec70()
+//                    + "s\n50%:" + helper.getDurationSec50()
+//                    + "s\n20%:" + helper.getDurationSec20() + "s";
+//        }
 
         void setCodec(BluetoothCodecConfig config) {
             btCtrl.setBtCodecConfig(config);
@@ -383,9 +384,9 @@ public class MainService extends Service {
             btCtrl.setCodecByPreset(i);
         }
 
-        int isPlaying() {
-            return btCtrl.isPlaying();
-        }
+//        int isPlaying() {
+//            return btCtrl.isPlaying();
+//        }
 
     }
 

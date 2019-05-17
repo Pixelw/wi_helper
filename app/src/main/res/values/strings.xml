@@ -31,4 +31,6 @@
     <string name="gotoset">Go to settings</string>
     <string name="exit">Exit</string>
     <string name="set">Set</string>
+    <string name="sbc_ac">SBC</string>
+    <string name="aac_ac">AAC</string>
 </resources>
