@@ -195,6 +195,7 @@
                     android:id="@+id/btnSetCodec"
                     app:layout_constraintTop_toBottomOf="@id/tv_options"
                     app:layout_constraintEnd_toEndOf="parent"
+                    android:visibility="invisible"
                     android:text="@string/set" />
 
             </android.support.constraint.ConstraintLayout>

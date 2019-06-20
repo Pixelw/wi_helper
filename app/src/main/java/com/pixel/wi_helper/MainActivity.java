@@ -31,12 +31,17 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvCodecName;
     private TextView tvCodecStat1;
     private TextView tvCodecStat2;
+    private Button btnSetCodec;
     private int bluetoothDenied = 0;
     private MainService.MBinder serviceBinder;
     private boolean exitingHelper = false;
+    private boolean spinnerChangesIsPending = false;
     private int selectCodecIndex = 0;
     private int selectSamplingIndex = 1;
     private int selectBitIndex = 1;
+    private Spinner codecsSpinner;
+    private Spinner samplingSpinner;
+    private Spinner bitSpinner;
 
 
     @Override
@@ -63,10 +68,10 @@ public class MainActivity extends AppCompatActivity {
         tvCodecStat2 = findViewById(R.id.ac_codecStatusLine2);
         ImageView imgSetHQ = findViewById(R.id.ac_codecHq);
         ImageView imgSetPowersaving = findViewById(R.id.ac_codecBatt);
-        Button btnSetCodec = findViewById(R.id.btnSetCodec);
-        Spinner codecsSpinner = findViewById(R.id.ac_codecsSpinner);
-        Spinner samplingSpinner = findViewById(R.id.ac_sampleRateSpinner);
-        Spinner bitSpinner = findViewById(R.id.ac_bitsSpinner);
+        btnSetCodec = findViewById(R.id.btnSetCodec);
+        codecsSpinner = findViewById(R.id.ac_codecsSpinner);
+        samplingSpinner = findViewById(R.id.ac_sampleRateSpinner);
+        bitSpinner = findViewById(R.id.ac_bitsSpinner);
 
         Intent startIntent = new Intent(this, MainService.class);
         startService(startIntent);
@@ -81,6 +86,8 @@ public class MainActivity extends AppCompatActivity {
                        selectBitIndex,BluetoothCodecConfig.CHANNEL_MODE_STEREO,
                        1003,0,0,0);
                serviceBinder.setCodec(codecConfig);
+               spinnerChangesIsPending = false;
+               btnSetCodec.setVisibility(View.INVISIBLE);
             }
         });
         imgSetHQ.setOnClickListener(new View.OnClickListener() {
@@ -99,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
         codecsSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (selectCodecIndex != position) spinnersChanged();
                 selectCodecIndex = position;
             }
 
@@ -109,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
         samplingSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (selectSamplingIndex != position) spinnersChanged();
                 selectSamplingIndex = position == 0 ? 1 :
                         position == 1 ? 2 :
                                 position == 2 ? 4 :
@@ -122,6 +131,7 @@ public class MainActivity extends AppCompatActivity {
         bitSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (selectBitIndex != position) spinnersChanged();
                 selectBitIndex = position == 0 ? 1 :
                         position == 1 ? 2 :
                                 position == 2 ? 4 : 0;
@@ -132,11 +142,17 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void spinnersChanged() {
+        if (!spinnerChangesIsPending){
+            btnSetCodec.setVisibility(View.VISIBLE);
+            spinnerChangesIsPending = true;
+        }
+    }
+
     private ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             serviceBinder = (MainService.MBinder) service;
-
             ABinder aBinder = new ABinder();
             serviceBinder.castBinder(aBinder);
         }
@@ -159,6 +175,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateDashboard(BluetoothCodecConfig config) {
         if (config != null) {
+            codecsSpinner.setSelection(config.getCodecType(),true);
             switch (config.getCodecType()) {
                 case 0:
                     tvCodecName.setText(R.string.sbc_ac);
@@ -207,15 +224,19 @@ public class MainActivity extends AppCompatActivity {
 
             switch (config.getSampleRate()) {
                 case 1:
+                    samplingSpinner.setSelection(0);
                     sampler = "44.1kHz";
                     break;
                 case 2:
+                    samplingSpinner.setSelection(1);
                     sampler = "48kHz";
                     break;
                 case 4:
+                    samplingSpinner.setSelection(2);
                     sampler = "88.2kHz";
                     break;
                 case 8:
+                    samplingSpinner.setSelection(3);
                     sampler = "96kHz";
                     break;
                 default:
@@ -225,12 +246,15 @@ public class MainActivity extends AppCompatActivity {
 
             switch (config.getBitsPerSample()) {
                 case 1:
+                    bitSpinner.setSelection(0);
                     bitd = "16bit";
                     break;
                 case 2:
+                    bitSpinner.setSelection(1);
                     bitd = "24bit";
                     break;
                 case 4:
+                    bitSpinner.setSelection(2);
                     bitd = "32bit";
                     break;
                 default:

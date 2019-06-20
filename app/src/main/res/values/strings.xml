@@ -33,4 +33,5 @@
     <string name="set">Set</string>
     <string name="sbc_ac">SBC</string>
     <string name="aac_ac">AAC</string>
+    <string name="tap_to_open">tap to open "Wi-Helper"</string>
 </resources>

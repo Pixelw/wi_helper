@@ -42,7 +42,7 @@ class BluetoothController {
         }
     }
 
-    boolean daoIsConnected() {
+    boolean isConnected() {
         return myBluetoothDevice.isConnected();
     }
 

@@ -17,14 +17,12 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 import android.widget.Toast;
-
-import java.util.Timer;
-import java.util.TimerTask;
 
 
 /*
@@ -49,15 +47,17 @@ public class MainService extends Service {
     private RemoteViews remoteViews;
     private MBinder mBinder = new MBinder();
     private NotificationManager notificationManager;
-    private Notification notification;
+    private Notification toolbarNotification;
     private BluetoothController btCtrl;
     private BatteryTimer helper;
     private boolean BATTERY_TESTING = false;
     private BluetoothCodecConfig testingConfig;
     private MainActivity.ABinder aBinder;
     private int pendingActivityAction = 0;
+    private PendingIntent pi;
+    private long codecLastChangeTime = 0;
 
-    private boolean deviceIsConnected = false;
+    //    private boolean deviceIsConnected = false;
     private boolean serviceIsRunning = false;
     // private int previousBattLevel = -100;
 
@@ -73,6 +73,8 @@ public class MainService extends Service {
         IntentFilter btEventFilter = new IntentFilter();
         btEventFilter.addAction(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED);
         btEventFilter.addAction(BluetoothDevice.ACTION_BATTERY_LEVEL_CHANGED);
+        btEventFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        btEventFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         btEventFilter.addAction(BluetoothA2dp.ACTION_CODEC_CONFIG_CHANGED);
         registerReceiver(btEventReceiver, btEventFilter);
 
@@ -90,8 +92,8 @@ public class MainService extends Service {
                         new Intent().setAction("com.pixel.wi_helper.pwsOnClick"), PendingIntent.FLAG_UPDATE_CURRENT));
 
         Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, 0);
+//        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        pi = PendingIntent.getActivity(this, 0, intent, 0);
         remoteViews.setOnClickPendingIntent(R.id.toolbarIcon, pi);
 
         IntentFilter a2dpFilter = new IntentFilter();
@@ -106,7 +108,7 @@ public class MainService extends Service {
         switch (btCtrl.bluetoothStatus()) {
             case 1:
                 pendingActivityAction = 0;
-                deviceIsConnected = btCtrl.daoIsConnected();
+//                deviceIsConnected = btCtrl.isConnected();
                 break;
             case 0:
                 if (aBinder == null) { //first start, abinder is not instant yet.
@@ -167,17 +169,49 @@ public class MainService extends Service {
                         }
                         //previousBattLevel = ib;
                         setToolbarBattery(ib);
-                        aBinder.updateActivityBattLevel(ib);
+                        if (aBinder != null) {
+                            aBinder.updateActivityBattLevel(ib);
+                        }
+
                         break;
 
                     case BluetoothA2dp.ACTION_CODEC_CONFIG_CHANGED:
-                        BluetoothCodecStatus codecStatus = intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS);
-                        Log.d("codecChanged", codecStatus.getCodecConfig().toString());
-                        aBinder.updateActivityCodecStatus(codecStatus.getCodecConfig());
-                        remoteViews.setTextViewText(R.id.toolbarStat, configToDesc(codecStatus.getCodecConfig()));
-                        notificationManager.notify(1, notification);
-                        break;
 
+                        long timeBroadcastReceived = SystemClock.elapsedRealtime();
+                        Log.d("codecChanged", String.format(
+                                "changed at %d, %d between",
+                                timeBroadcastReceived, timeBroadcastReceived - codecLastChangeTime));
+
+                        if (timeBroadcastReceived - codecLastChangeTime > 1000) {
+                            BluetoothCodecStatus codecStatus = intent.getParcelableExtra(BluetoothCodecStatus.EXTRA_CODEC_STATUS);
+                            if (aBinder != null) {
+                                aBinder.updateActivityCodecStatus(codecStatus.getCodecConfig());
+                            }
+                            remoteViews.setTextViewText(R.id.toolbarStat, configToDesc(codecStatus.getCodecConfig()));
+                            if (toolbarNotification != null) {
+                                notificationManager.notify(1, toolbarNotification);
+                            } else {
+                                setNotification();
+                            }
+                        }
+                        codecLastChangeTime = SystemClock.elapsedRealtime();
+                        break;
+                    case BluetoothDevice.ACTION_ACL_DISCONNECTED:
+                        Log.d("deviceDisCon", "onReceive: discon");
+                        if (aBinder!=null){
+                            aBinder.updateActivityConnStat(btCtrl.isConnected());
+                        }
+                        break;
+                    case BluetoothDevice.ACTION_ACL_CONNECTED:
+                        Log.d("deviceIsConn", "onReceive: conn");
+                        if (aBinder != null) {
+                            aBinder.updateActivityConnStat(btCtrl.isConnected());
+//                            aBinder.updateActivityCodecStatus(btCtrl.getBtCurrentConfig());
+//                            aBinder.updateActivityBattLevel(btCtrl.getThisBatteryLevel());
+                            //seems attributes above would update themselves
+                            aBinder.updateActivityDeviceName(btCtrl.getMyBluetoothDevice().getName());
+                        }
+                        break;
                     default:
                         break;
                 }
@@ -249,38 +283,61 @@ public class MainService extends Service {
                 remoteViews.setTextViewText(R.id.toolbarText, name);
                 int battery = btCtrl.getThisBatteryLevel();
                 setToolbarBattery(battery);
-                aBinder.updateActivityCodecStatus(btConfig);
-                aBinder.updateActivityDeviceName(name);
-                aBinder.updateActivityBattLevel(battery);
+                if (aBinder != null) {
+                    aBinder.updateActivityCodecStatus(btConfig);
+                    aBinder.updateActivityDeviceName(name);
+                    aBinder.updateActivityBattLevel(battery);
+                }
+
                 serviceIsRunning = true;
             }
         }
     };
 
     private void setNotification() {
-        NotificationChannel channel = new NotificationChannel("1", "WI-Helper", NotificationManager.IMPORTANCE_DEFAULT);
-        channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-        channel.enableVibration(false);
-        channel.enableLights(false);
-        assert notificationManager != null;
-        notificationManager.createNotificationChannel(channel);
-        notification = new Notification.Builder(MainService.this, "1")
-                .setSmallIcon(R.drawable.ic_headset_black_24dp)
-                .setWhen(System.currentTimeMillis())
-                .setCustomContentView(remoteViews)
-                .build();
-        startForeground(1, notification);
-        final Timer notifiCancelTimer = new Timer();
-        TimerTask timerTask = new TimerTask() {
-            @Override
-            public void run() {
-                if (!deviceIsConnected) {
-                    stopForeground(true);
-                }
+        if (btCtrl.isConnected()) {
+            NotificationChannel channel = new NotificationChannel("1",
+                    "WI-Helper", NotificationManager.IMPORTANCE_DEFAULT);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            channel.enableVibration(false);
+            channel.enableLights(false);
 
-            }
-        };
-        notifiCancelTimer.schedule(timerTask, 10000);
+            notificationManager.createNotificationChannel(channel);
+            toolbarNotification = new Notification.Builder(MainService.this, "1")
+                    .setSmallIcon(R.drawable.ic_headset_black_24dp)
+                    .setWhen(System.currentTimeMillis())
+                    .setCustomContentView(remoteViews)
+                    .build();
+            startForeground(1, toolbarNotification);
+        } else {
+            NotificationChannel channel0 = new NotificationChannel("3",
+                    "WI-Helper Background Holder", NotificationManager.IMPORTANCE_DEFAULT);
+            channel0.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            channel0.enableVibration(false);
+            channel0.enableLights(false);
+
+            notificationManager.createNotificationChannel(channel0);
+            Notification notification0 = new Notification.Builder(MainService.this, "3")
+                    .setContentTitle("Wi-Helper is running background")
+                    .setContentText(getString(R.string.tap_to_open))
+                    .setWhen(System.currentTimeMillis())
+                    .setSmallIcon(R.mipmap.ic_launcher_round)
+                    .setContentIntent(pi)
+                    .build();
+            startForeground(3, notification0);
+        }
+
+//        final Timer notifiCancelTimer = new Timer();
+//        TimerTask timerTask = new TimerTask() {
+//            @Override
+//            public void run() {
+//                if (!deviceIsConnected) {
+//                    stopForeground(true);
+//                }
+//
+//            }
+//        };
+//        notifiCancelTimer.schedule(timerTask, 10000);
     }
 
     @Override
@@ -321,7 +378,7 @@ public class MainService extends Service {
                     break;
             }
 
-            aBinder.updateActivityConnStat(deviceIsConnected);
+            aBinder.updateActivityConnStat(btCtrl.isConnected());
             if (serviceIsRunning) { //refresh when resume
                 aBinder.updateActivityCodecStatus(btCtrl.getBtCurrentConfig());
                 aBinder.updateActivityBattLevel(btCtrl.getThisBatteryLevel());
@@ -339,7 +396,7 @@ public class MainService extends Service {
         }
 
 //        boolean deviceIsConnected() {
-//            return btCtrl.daoIsConnected();
+//            return btCtrl.isConnected();
 //        }
 
 //        ContentValues getCurrentCodec() {
@@ -416,8 +473,8 @@ public class MainService extends Service {
             remoteViews.setTextViewText(R.id.toolbarBattStatus, "--");
             remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_unknown_black_24dp);
         }
-        if (notification != null) {
-            notificationManager.notify(1, notification);
+        if (toolbarNotification != null) {
+            notificationManager.notify(1, toolbarNotification);
         } else {
             setNotification();
         }
@@ -448,8 +505,8 @@ public class MainService extends Service {
                 remoteViews.setTextViewText(R.id.toolbarModesBg, getString(R.string.other));
                 break;
         }
-        if (notification != null) {
-            notificationManager.notify(1, notification);
+        if (toolbarNotification != null) {
+            notificationManager.notify(1, toolbarNotification);
         }
     }
 
