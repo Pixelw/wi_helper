@@ -43,13 +43,16 @@ class BluetoothController {
     }
 
     boolean isConnected() {
+        if (myBluetoothDevice == null) {
+            return false;
+        }
         return myBluetoothDevice.isConnected();
     }
 
     int getThisBatteryLevel() {
         if (myBluetoothDevice != null) {
             int a = myBluetoothDevice.getBatteryLevel();
-            Log.d("C:getBattery?", "getThisBatteryLevel: " + a);
+            Log.d("getBattery", "getBatteryLevel: " + a);
             return a;
         } else {
             return -2;
@@ -102,6 +105,7 @@ class BluetoothController {
         if (devices.size() > 0) {
             for (BluetoothDevice bluetoothDevice : devices) {
                 //Log.d("WIH_FOUND", "设备：" + bluetoothDevice.getName() + " " + bluetoothDevice.getAddress());
+                //目前只支持H700
                 if (bluetoothDevice.getName().contains("WI-H700")) {
                     myDeviceAddress = bluetoothDevice.getAddress();
                     Log.d("WIH_FOUND", "found WI-H700");

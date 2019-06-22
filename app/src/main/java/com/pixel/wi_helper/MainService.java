@@ -24,6 +24,8 @@ import android.view.View;
 import android.widget.RemoteViews;
 import android.widget.Toast;
 
+import com.pixel.wi_helper.bean.DeviceStatus;
+
 
 /*
 以下是业余注释：
@@ -44,7 +46,7 @@ onstartcommand(),onBind()都没有代码执行，目的是利用oC只在第一�
 
 public class MainService extends Service {
 
-    private RemoteViews remoteViews;
+    private RemoteViews rvToolbar;
     private MBinder mBinder = new MBinder();
     private NotificationManager notificationManager;
     private Notification toolbarNotification;
@@ -56,6 +58,7 @@ public class MainService extends Service {
     private int pendingActivityAction = 0;
     private PendingIntent pi;
     private long codecLastChangeTime = 0;
+    private DeviceStatus savedDeviceStatus;
 
     //    private boolean deviceIsConnected = false;
     private boolean serviceIsRunning = false;
@@ -83,18 +86,18 @@ public class MainService extends Service {
         toolbarActionFilter.addAction("com.pixel.wi_helper.hqOnClick");
         toolbarActionFilter.addAction("com.pixel.wi_helper.pwsOnClick");
         registerReceiver(toolbarActionReceiver, toolbarActionFilter);
-        remoteViews = new RemoteViews(getPackageName(), R.layout.rtoolbar_layout);
-        remoteViews.setOnClickPendingIntent(R.id.toolbarHQ, PendingIntent.getBroadcast
+        rvToolbar = new RemoteViews(getPackageName(), R.layout.rtoolbar_layout);
+        rvToolbar.setOnClickPendingIntent(R.id.toolbarHQ, PendingIntent.getBroadcast
                 (this, 0,
                         new Intent().setAction("com.pixel.wi_helper.hqOnClick"), PendingIntent.FLAG_UPDATE_CURRENT));
-        remoteViews.setOnClickPendingIntent(R.id.toolbarPwrs, PendingIntent.getBroadcast
+        rvToolbar.setOnClickPendingIntent(R.id.toolbarPwrs, PendingIntent.getBroadcast
                 (this, 0,
                         new Intent().setAction("com.pixel.wi_helper.pwsOnClick"), PendingIntent.FLAG_UPDATE_CURRENT));
 
         Intent intent = new Intent(this, MainActivity.class);
 //        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         pi = PendingIntent.getActivity(this, 0, intent, 0);
-        remoteViews.setOnClickPendingIntent(R.id.toolbarIcon, pi);
+        rvToolbar.setOnClickPendingIntent(R.id.toolbarIcon, pi);
 
         IntentFilter a2dpFilter = new IntentFilter();
         a2dpFilter.addAction("com.pixel.wi_helper.A2DP_READY");
@@ -105,6 +108,14 @@ public class MainService extends Service {
     }
 
     private void initBluetooth() {
+        /*
+            启动时从几种情况中判断蓝牙的状态（BluetoothController.bluetoothStatus）
+            1: ok
+            0: 蓝牙关闭
+            -1：没有找到配对的设备
+             pendingActivityAction: 在活动未启动时预定操作
+
+         */
         switch (btCtrl.bluetoothStatus()) {
             case 1:
                 pendingActivityAction = 0;
@@ -168,7 +179,8 @@ public class MainService extends Service {
                             nextTimer(ib);
                         }
                         //previousBattLevel = ib;
-                        setToolbarBattery(ib);
+                        savedDeviceStatus.setBatteryLevel(ib);
+                        updateToolbar();
                         if (aBinder != null) {
                             aBinder.updateActivityBattLevel(ib);
                         }
@@ -187,23 +199,21 @@ public class MainService extends Service {
                             if (aBinder != null) {
                                 aBinder.updateActivityCodecStatus(codecStatus.getCodecConfig());
                             }
-                            remoteViews.setTextViewText(R.id.toolbarStat, configToDesc(codecStatus.getCodecConfig()));
-                            if (toolbarNotification != null) {
-                                notificationManager.notify(1, toolbarNotification);
-                            } else {
-                                setNotification();
-                            }
+                            savedDeviceStatus.setCodecConfig(codecStatus.getCodecConfig());
+                            updateToolbar();
                         }
                         codecLastChangeTime = SystemClock.elapsedRealtime();
                         break;
                     case BluetoothDevice.ACTION_ACL_DISCONNECTED:
                         Log.d("deviceDisCon", "onReceive: discon");
-                        if (aBinder!=null){
+                        savedDeviceStatus.setConnected(btCtrl.isConnected());
+                        if (aBinder != null) {
                             aBinder.updateActivityConnStat(btCtrl.isConnected());
                         }
                         break;
                     case BluetoothDevice.ACTION_ACL_CONNECTED:
                         Log.d("deviceIsConn", "onReceive: conn");
+                        savedDeviceStatus.setConnected(btCtrl.isConnected());
                         if (aBinder != null) {
                             aBinder.updateActivityConnStat(btCtrl.isConnected());
 //                            aBinder.updateActivityCodecStatus(btCtrl.getBtCurrentConfig());
@@ -218,6 +228,7 @@ public class MainService extends Service {
             }
         }
     };
+
 
     private void nextTimer(int ib) {
         switch (ib) {
@@ -252,11 +263,11 @@ public class MainService extends Service {
                 switch (action) {
                     case "com.pixel.wi_helper.hqOnClick":
                         btCtrl.setCodecByPreset(1);
-                        switchToggle(1);
+                        switchToggle(1, true);
                         break;
                     case "com.pixel.wi_helper.pwsOnClick":
                         btCtrl.setCodecByPreset(2);
-                        switchToggle(2);
+                        switchToggle(2, true);
                         break;
                     default:
                         break;
@@ -269,33 +280,23 @@ public class MainService extends Service {
     private BroadcastReceiver a2dpReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            BluetoothCodecConfig btConfig = btCtrl.getBtCurrentConfig();
-            if (btConfig != null) {
-                remoteViews.setTextViewText(R.id.toolbarStat, configToDesc(btConfig));
-                if (btConfig.getSampleRate() == BluetoothCodecConfig.SAMPLE_RATE_44100) {
-                    switchToggle(1);
-                } else if (btConfig.getCodecType() == BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC) {
-                    switchToggle(2);
-                } else {
-                    switchToggle(0);
-                }
-                String name = btCtrl.getMyBluetoothDevice().getName();
-                remoteViews.setTextViewText(R.id.toolbarText, name);
-                int battery = btCtrl.getThisBatteryLevel();
-                setToolbarBattery(battery);
-                if (aBinder != null) {
-                    aBinder.updateActivityCodecStatus(btConfig);
-                    aBinder.updateActivityDeviceName(name);
-                    aBinder.updateActivityBattLevel(battery);
-                }
-
-                serviceIsRunning = true;
+            savedDeviceStatus = new DeviceStatus();
+            savedDeviceStatus.setName(btCtrl.getMyBluetoothDevice().getName());
+            savedDeviceStatus.setCodecConfig(btCtrl.getBtCurrentConfig());
+            savedDeviceStatus.setBatteryLevel(btCtrl.getThisBatteryLevel());
+            updateToolbar();
+            if (aBinder != null) {
+                aBinder.updateActivityCodecStatus(savedDeviceStatus.getCodecConfig());
+                aBinder.updateActivityDeviceName(savedDeviceStatus.getName());
+                aBinder.updateActivityBattLevel(savedDeviceStatus.getBatteryLevel());
             }
+            serviceIsRunning = true;
         }
     };
 
     private void setNotification() {
         if (btCtrl.isConnected()) {
+            //蓝牙已连接时，直接弹出工具栏
             NotificationChannel channel = new NotificationChannel("1",
                     "WI-Helper", NotificationManager.IMPORTANCE_DEFAULT);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
@@ -306,10 +307,12 @@ public class MainService extends Service {
             toolbarNotification = new Notification.Builder(MainService.this, "1")
                     .setSmallIcon(R.drawable.ic_headset_black_24dp)
                     .setWhen(System.currentTimeMillis())
-                    .setCustomContentView(remoteViews)
+                    .setCustomContentView(rvToolbar)
                     .build();
             startForeground(1, toolbarNotification);
         } else {
+
+            //尚未链接到耳机时，弹出后台保活的通知栏
             NotificationChannel channel0 = new NotificationChannel("3",
                     "WI-Helper Background Holder", NotificationManager.IMPORTANCE_DEFAULT);
             channel0.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
@@ -387,17 +390,10 @@ public class MainService extends Service {
         }
 
 
-//        int getBatt() {
-//            return btCtrl.getThisBatteryLevel();
-//        }
-
         void btIsNowOn() {
             initBluetooth();
         }
 
-//        boolean deviceIsConnected() {
-//            return btCtrl.isConnected();
-//        }
 
 //        ContentValues getCurrentCodec() {
 //            BluetoothCodecConfig config = btCtrl.getBtCurrentConfig();
@@ -447,31 +443,18 @@ public class MainService extends Service {
 
     }
 
-    private void setToolbarBattery(int bat) {
-        if (bat >= 0 && bat <= 100) {
-            remoteViews.setTextViewText(R.id.toolbarBattStatus, bat + "%");
-            if (bat >= 90) {
-                remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_full_black_24dp);
-            } else if (bat >= 70) {
-                remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_80_black_24dp);
-            } else if (bat >= 60) {
-                remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_60_black_24dp);
-            } else if (bat >= 50) {
-                remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_50_black_24dp);
-            } else if (bat >= 30) {
-                remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_30_black_24dp);
-            } else if (bat >= 20) {
-                remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_20_black_24dp);
-                int red = ContextCompat.getColor(getApplicationContext(), R.color.colorAccent);
-                remoteViews.setTextColor(R.id.toolbarBattStatus, red);
+    private void updateToolbar() {
+        rvToolbar.setTextViewText(R.id.toolbarText, savedDeviceStatus.getName());
+        setToolbarBattery(savedDeviceStatus.getBatteryLevel());
+        if (savedDeviceStatus.getCodecConfig() != null) {
+            rvToolbar.setTextViewText(R.id.toolbarStat, savedDeviceStatus.getCodecConfigDesc());
+            if (savedDeviceStatus.getCodecConfig().getSampleRate() == BluetoothCodecConfig.SAMPLE_RATE_44100) {
+                switchToggle(1, false);
+            } else if (savedDeviceStatus.getCodecConfig().getCodecType() == BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC) {
+                switchToggle(2, false);
             } else {
-                int red = ContextCompat.getColor(getApplicationContext(), R.color.colorAccent);
-                remoteViews.setTextColor(R.id.toolbarBattStatus, red);
-                remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_20_black_24dp);
+                switchToggle(0, false);
             }
-        } else {
-            remoteViews.setTextViewText(R.id.toolbarBattStatus, "--");
-            remoteViews.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_unknown_black_24dp);
         }
         if (toolbarNotification != null) {
             notificationManager.notify(1, toolbarNotification);
@@ -481,94 +464,63 @@ public class MainService extends Service {
 
     }
 
-    private void switchToggle(int status) {
-        switch (status) {
-            case 1:
-                remoteViews.setViewVisibility(R.id.toolbarPwrsBg, View.INVISIBLE);
-                remoteViews.setViewVisibility(R.id.toolbarHQBg, View.VISIBLE);
-                remoteViews.setTextViewText(R.id.toolbarHQ, "");
-                remoteViews.setTextViewText(R.id.toolbarPwrs, getString(R.string.quality));
-                remoteViews.setTextViewText(R.id.toolbarModesBg, "");
-                break;
-            case 2:
-                remoteViews.setViewVisibility(R.id.toolbarPwrsBg, View.VISIBLE);
-                remoteViews.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
-                remoteViews.setTextViewText(R.id.toolbarHQ, getString(R.string.stable));
-                remoteViews.setTextViewText(R.id.toolbarPwrs, "");
-                remoteViews.setTextViewText(R.id.toolbarModesBg, "");
-                break;
-            default:
-                remoteViews.setViewVisibility(R.id.toolbarPwrsBg, View.INVISIBLE);
-                remoteViews.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
-                remoteViews.setTextViewText(R.id.toolbarHQ, "");
-                remoteViews.setTextViewText(R.id.toolbarPwrs, "");
-                remoteViews.setTextViewText(R.id.toolbarModesBg, getString(R.string.other));
-                break;
+    private void setToolbarBattery(int bat) {
+        if (bat >= 0 && bat <= 100) {
+            rvToolbar.setTextViewText(R.id.toolbarBattStatus, bat + "%");
+            if (bat >= 90) {
+                rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_full_black_24dp);
+            } else if (bat >= 70) {
+                rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_80_black_24dp);
+            } else if (bat >= 60) {
+                rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_60_black_24dp);
+            } else if (bat >= 50) {
+                rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_50_black_24dp);
+            } else if (bat >= 30) {
+                rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_30_black_24dp);
+            } else if (bat >= 20) {
+                rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_20_black_24dp);
+                int red = ContextCompat.getColor(getApplicationContext(), R.color.colorAccent);
+                rvToolbar.setTextColor(R.id.toolbarBattStatus, red);
+            } else {
+                int red = ContextCompat.getColor(getApplicationContext(), R.color.colorAccent);
+                rvToolbar.setTextColor(R.id.toolbarBattStatus, red);
+                rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_20_black_24dp);
+            }
+        } else {
+            rvToolbar.setTextViewText(R.id.toolbarBattStatus, "--");
+            rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_unknown_black_24dp);
         }
-        if (toolbarNotification != null) {
-            notificationManager.notify(1, toolbarNotification);
-        }
+
     }
 
-    private String configToDesc(BluetoothCodecConfig config) {
-        if (config != null) {
-            String ldacq;
-            String sampler;
-            String bitd;
-            String codec = config.getCodecName();
-            switch ((int) config.getCodecSpecific1()) {
-                case 1000:
-                    ldacq = "High";
-                    break;
-                case 1001:
-                    ldacq = "Med";
-                    break;
-                case 1002:
-                    ldacq = "Low";
-                    break;
-                case 1003:
-                    ldacq = "Auto";
-                    break;
-                default:
-                    ldacq = "";
-                    break;
-            }
-
-            switch (config.getSampleRate()) {
-                case 1:
-                    sampler = "44.1kHz";
-                    break;
-                case 2:
-                    sampler = "48kHz";
-                    break;
-                case 4:
-                    sampler = "88.2kHz";
-                    break;
-                case 8:
-                    sampler = "96kHz";
-                    break;
-                default:
-                    sampler = "";
-                    break;
-            }
-
-            switch (config.getBitsPerSample()) {
-                case 1:
-                    bitd = "16bit";
-                    break;
-                case 2:
-                    bitd = "24bit";
-                    break;
-                case 4:
-                    bitd = "32bit";
-                    break;
-                default:
-                    bitd = "";
-                    break;
-            }
-            return codec + " " + sampler + " " + bitd + " " + ldacq;
+    private void switchToggle(int status, boolean refreshNow) {
+        switch (status) {
+            case 1:
+                rvToolbar.setViewVisibility(R.id.toolbarPwrsBg, View.INVISIBLE);
+                rvToolbar.setViewVisibility(R.id.toolbarHQBg, View.VISIBLE);
+                rvToolbar.setTextViewText(R.id.toolbarHQ, "");
+                rvToolbar.setTextViewText(R.id.toolbarPwrs, getString(R.string.quality));
+                rvToolbar.setTextViewText(R.id.toolbarModesBg, "");
+                break;
+            case 2:
+                rvToolbar.setViewVisibility(R.id.toolbarPwrsBg, View.VISIBLE);
+                rvToolbar.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
+                rvToolbar.setTextViewText(R.id.toolbarHQ, getString(R.string.stable));
+                rvToolbar.setTextViewText(R.id.toolbarPwrs, "");
+                rvToolbar.setTextViewText(R.id.toolbarModesBg, "");
+                break;
+            default:
+                rvToolbar.setViewVisibility(R.id.toolbarPwrsBg, View.INVISIBLE);
+                rvToolbar.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
+                rvToolbar.setTextViewText(R.id.toolbarHQ, "");
+                rvToolbar.setTextViewText(R.id.toolbarPwrs, "");
+                rvToolbar.setTextViewText(R.id.toolbarModesBg, getString(R.string.other));
+                break;
         }
-        return getString(R.string.unknownCodecConfig);
+
+        if (toolbarNotification != null && refreshNow) {
+            notificationManager.notify(1, toolbarNotification);
+        }
     }
 
     private void makeToast(final String msg) {
