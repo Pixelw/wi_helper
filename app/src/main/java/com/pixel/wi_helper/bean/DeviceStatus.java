@@ -4,8 +4,6 @@ import android.bluetooth.BluetoothCodecConfig;
 
 public class DeviceStatus {
 
-
-
     private String name;
     private boolean isConnected;
     private int batteryLevel;

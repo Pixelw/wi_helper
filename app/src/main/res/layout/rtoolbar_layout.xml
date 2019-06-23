@@ -57,7 +57,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:id="@+id/toolbarTimeremain"
+            android:id="@+id/toolbarTimeRemain"
             android:text=""
             android:fontFamily="sans-serif-condensed"
             android:gravity="center"
@@ -87,9 +87,9 @@
         android:id="@+id/toolbarModesBg"
         android:background="@drawable/gradient_rectangle"
         android:gravity="center"
-        android:fontFamily="sans-serif-black"
+        android:fontFamily="sans-serif-light"
         android:textColor="@color/colorWhite"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:layout_gravity="center_vertical"
         android:clickable="false"/>
 

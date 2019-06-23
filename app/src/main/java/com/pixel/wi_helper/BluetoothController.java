@@ -26,6 +26,10 @@ class BluetoothController {
     private BluetoothDevice myBluetoothDevice;
     private String myDeviceAddress = "null";
 
+    public String getMyDeviceAddress() {
+        return myDeviceAddress;
+    }
+
     int bluetoothStatus() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter.isEnabled()) {

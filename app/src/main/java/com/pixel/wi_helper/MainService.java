@@ -26,6 +26,9 @@ import android.widget.Toast;
 
 import com.pixel.wi_helper.bean.DeviceStatus;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 
 /*
 以下是业余注释：
@@ -205,22 +208,30 @@ public class MainService extends Service {
                         codecLastChangeTime = SystemClock.elapsedRealtime();
                         break;
                     case BluetoothDevice.ACTION_ACL_DISCONNECTED:
-                        Log.d("deviceDisCon", "onReceive: discon");
-                        savedDeviceStatus.setConnected(btCtrl.isConnected());
-                        if (aBinder != null) {
-                            aBinder.updateActivityConnStat(btCtrl.isConnected());
+                        BluetoothDevice intentDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                        Log.d("deviceDisConn", intentDevice.getName());
+                        if (intentDevice.getAddress().equals(btCtrl.getMyDeviceAddress())){
+                            rvToolbar.setTextViewText(R.id.toolbarTimeRemain, getString(R.string.disconnected));
+                            updateToolbar();
+                            if (aBinder != null) {
+                                aBinder.updateActivityConnStat(btCtrl.isConnected());
+                            }
                         }
                         break;
                     case BluetoothDevice.ACTION_ACL_CONNECTED:
-                        Log.d("deviceIsConn", "onReceive: conn");
-                        savedDeviceStatus.setConnected(btCtrl.isConnected());
-                        if (aBinder != null) {
-                            aBinder.updateActivityConnStat(btCtrl.isConnected());
-//                            aBinder.updateActivityCodecStatus(btCtrl.getBtCurrentConfig());
-//                            aBinder.updateActivityBattLevel(btCtrl.getThisBatteryLevel());
-                            //seems attributes above would update themselves
-                            aBinder.updateActivityDeviceName(btCtrl.getMyBluetoothDevice().getName());
+                        BluetoothDevice intent2Device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                        Log.d("deviceIsConn", intent2Device.getName());
+
+                        if (intent2Device.getAddress().equals(btCtrl.getMyDeviceAddress())){
+                            savedDeviceStatus.setConnected(true);
+                            updateToolbar();
+                            rvToolbar.setTextViewText(R.id.toolbarTimeRemain, "");
+                            if (aBinder != null) {
+                                aBinder.updateActivityConnStat(btCtrl.isConnected());
+                                aBinder.updateActivityDeviceName(btCtrl.getMyBluetoothDevice().getName());
+                            }
                         }
+
                         break;
                     default:
                         break;
@@ -276,7 +287,7 @@ public class MainService extends Service {
             }
         }
     };
-    //update infomation when a2dp is ready(fired by broadcast)
+    //update information when a2dp is ready(fired by broadcast)
     private BroadcastReceiver a2dpReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -285,6 +296,7 @@ public class MainService extends Service {
             savedDeviceStatus.setCodecConfig(btCtrl.getBtCurrentConfig());
             savedDeviceStatus.setBatteryLevel(btCtrl.getThisBatteryLevel());
             updateToolbar();
+            Log.d("a2dpReceiver", "startUp refresh");
             if (aBinder != null) {
                 aBinder.updateActivityCodecStatus(savedDeviceStatus.getCodecConfig());
                 aBinder.updateActivityDeviceName(savedDeviceStatus.getName());
@@ -330,17 +342,7 @@ public class MainService extends Service {
             startForeground(3, notification0);
         }
 
-//        final Timer notifiCancelTimer = new Timer();
-//        TimerTask timerTask = new TimerTask() {
-//            @Override
-//            public void run() {
-//                if (!deviceIsConnected) {
-//                    stopForeground(true);
-//                }
-//
-//            }
-//        };
-//        notifiCancelTimer.schedule(timerTask, 10000);
+
     }
 
     @Override
@@ -456,6 +458,7 @@ public class MainService extends Service {
                 switchToggle(0, false);
             }
         }
+
         if (toolbarNotification != null) {
             notificationManager.notify(1, toolbarNotification);
         } else {
@@ -487,7 +490,7 @@ public class MainService extends Service {
                 rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_20_black_24dp);
             }
         } else {
-            rvToolbar.setTextViewText(R.id.toolbarBattStatus, "--");
+            rvToolbar.setTextViewText(R.id.toolbarBattStatus, "");
             rvToolbar.setImageViewResource(R.id.toolbarBattMeter, R.drawable.ic_battery_unknown_black_24dp);
         }
 
@@ -514,7 +517,7 @@ public class MainService extends Service {
                 rvToolbar.setViewVisibility(R.id.toolbarHQBg, View.INVISIBLE);
                 rvToolbar.setTextViewText(R.id.toolbarHQ, "");
                 rvToolbar.setTextViewText(R.id.toolbarPwrs, "");
-                rvToolbar.setTextViewText(R.id.toolbarModesBg, getString(R.string.other));
+                rvToolbar.setTextViewText(R.id.toolbarModesBg, getString(R.string.select));
                 break;
         }
 
