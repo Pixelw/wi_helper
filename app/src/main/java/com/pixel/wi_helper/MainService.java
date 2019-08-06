@@ -54,7 +54,7 @@ public class MainService extends Service {
     private NotificationManager notificationManager;
     private Notification toolbarNotification;
     private BluetoothController btCtrl;
-    private BatteryTimer helper;
+//    private BatteryTimer helper;
     private boolean BATTERY_TESTING = false;
     private BluetoothCodecConfig testingConfig;
     private MainActivity.ABinder aBinder;
@@ -75,7 +75,7 @@ public class MainService extends Service {
         super.onCreate();
         //System Broadcast receivers:
         btCtrl = new BluetoothController();
-        helper = new BatteryTimer();
+//        helper = new BatteryTimer();
         IntentFilter btEventFilter = new IntentFilter();
         btEventFilter.addAction(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED);
         btEventFilter.addAction(BluetoothDevice.ACTION_BATTERY_LEVEL_CHANGED);
@@ -105,6 +105,7 @@ public class MainService extends Service {
         IntentFilter a2dpFilter = new IntentFilter();
         a2dpFilter.addAction("com.pixel.wi_helper.A2DP_READY");
         registerReceiver(a2dpReceiver, a2dpFilter);
+        savedDeviceStatus = new DeviceStatus();
         initBluetooth();
         setNotification();
         makeToast("WI-Helper Start");
@@ -160,13 +161,13 @@ public class MainService extends Service {
                             case 2:
                                 state = "playing";
                                 if (BATTERY_TESTING) {
-                                    helper.mainTimer();
+//                                    helper.mainTimer();
                                 }
                                 break;
                             case 1:
                                 state = "not playing";
                                 if (BATTERY_TESTING) {
-                                    helper.pauseTimer();
+//                                    helper.pauseTimer();
                                 }
                                 break;
                             default:
@@ -179,7 +180,7 @@ public class MainService extends Service {
                         ib = intent.getIntExtra(BluetoothDevice.EXTRA_BATTERY_LEVEL, -39);
                         Log.d("battChanged", "now:" + ib);
                         if (BATTERY_TESTING) {
-                            nextTimer(ib);
+//                            nextTimer(ib);
                         }
                         //previousBattLevel = ib;
                         savedDeviceStatus.setBatteryLevel(ib);
@@ -241,30 +242,30 @@ public class MainService extends Service {
     };
 
 
-    private void nextTimer(int ib) {
-        switch (ib) {
-            case 100:
-                break;
-            case 70:
-                helper.stopTimer(true);
-                helper.startTimer(70);
-                break;
-            case 50:
-                helper.stopTimer(true);
-                helper.startTimer(50);
-                break;
-            case 20:
-                helper.stopTimer(true);
-                helper.startTimer(20);
-                break;
-            default:
-                helper.stopTimer(true);
-                helper.save(testingConfig);
-                BATTERY_TESTING = false;
-                break;
-
-        }
-    }
+//    private void nextTimer(int ib) {
+//        switch (ib) {
+//            case 100:
+//                break;
+//            case 70:
+//                helper.stopTimer(true);
+//                helper.startTimer(70);
+//                break;
+//            case 50:
+//                helper.stopTimer(true);
+//                helper.startTimer(50);
+//                break;
+//            case 20:
+//                helper.stopTimer(true);
+//                helper.startTimer(20);
+//                break;
+//            default:
+//                helper.stopTimer(true);
+//                helper.save(testingConfig);
+//                BATTERY_TESTING = false;
+//                break;
+//
+//        }
+//    }
 
     private BroadcastReceiver toolbarActionReceiver = new BroadcastReceiver() {
         @Override
@@ -291,7 +292,6 @@ public class MainService extends Service {
     private BroadcastReceiver a2dpReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            savedDeviceStatus = new DeviceStatus();
             savedDeviceStatus.setName(btCtrl.getMyBluetoothDevice().getName());
             savedDeviceStatus.setCodecConfig(btCtrl.getBtCurrentConfig());
             savedDeviceStatus.setBatteryLevel(btCtrl.getThisBatteryLevel());

@@ -1,8 +1,7 @@
 package com.pixel.wi_helper.bean;
 
-import org.litepal.crud.LitePalSupport;
-
-public class LowBatteryAnalytics extends LitePalSupport {
+//disabled
+public class LowBatteryAnalytics {
 
     private int id;
     private String config;
