@@ -6,7 +6,6 @@ import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.VibrationEffect;
@@ -25,6 +24,8 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
+
+import com.pixel.wi_helper.utils.ConfigHelper;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -50,7 +51,8 @@ public class MainActivity extends AppCompatActivity {
     private Spinner samplingSpinner;
     private Spinner bitSpinner;
     private Vibrator mVibrator;
-    boolean configuringPreset = false;
+    int configuringPreset = 0;
+    private ConfigHelper savedPreferences;
 
 
     @Override
@@ -83,8 +85,10 @@ public class MainActivity extends AppCompatActivity {
         samplingSpinner = findViewById(R.id.ac_sampleRateSpinner);
         bitSpinner = findViewById(R.id.ac_bitsSpinner);
         final AlphaAnimation blinkAnimation = new AlphaAnimation(0.0f,1.0f);
-        blinkAnimation.setDuration(Animation.INFINITE);
+        blinkAnimation.setDuration(500);
+        blinkAnimation.setRepeatCount(Animation.INFINITE);
         blinkAnimation.setRepeatMode(Animation.RESTART);
+        savedPreferences = new ConfigHelper(this);
         mVibrator = (Vibrator)getApplication().getSystemService(VIBRATOR_SERVICE);
 
 
@@ -96,10 +100,10 @@ public class MainActivity extends AppCompatActivity {
         btnSetCodec.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (configuringPreset){
-                    int[] preset = {selectCodecIndex,selectSamplingIndex,selectBitIndex};
-
-                }else {
+                if (configuringPreset != 0){
+                    savedPreferences.savePresetConfig(configuringPreset,selectCodecIndex,
+                            selectSamplingIndex,selectBitIndex);
+                } else {
                     BluetoothCodecConfig codecConfig = new BluetoothCodecConfig(selectCodecIndex,
                             BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST,selectSamplingIndex,
                             selectBitIndex,BluetoothCodecConfig.CHANNEL_MODE_STEREO,
@@ -120,10 +124,16 @@ public class MainActivity extends AppCompatActivity {
         imgSetHQ.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
+                //TODO 修改spinner下标
                 imgSetHQ.setAnimation(blinkAnimation);
                 blinkAnimation.start();
                 mVibrator.vibrate(VibrationEffect.createOneShot(20,128));
-                configPreset();
+                configuringPreset = 1;
+                codecsSpinner.setSelection(savedPreferences.getPresetConfig("HqCodecIndex"));
+                samplingSpinner.setSelection(savedPreferences.getPresetConfig("HqSamplingIndex"));
+                bitSpinner.setSelection(savedPreferences.getPresetConfig("HqBitIndex"));
+
+
                 return false;
             }
         });
@@ -184,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
     private void configPreset() {
         tvOptions.setText(R.string.presets);
 
-        configuringPreset = true;
+
     }
 
     private void spinnersChanged() {

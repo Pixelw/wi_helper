@@ -316,6 +316,7 @@ public class MainService extends Service {
             channel.enableLights(false);
 
             notificationManager.createNotificationChannel(channel);
+            //TODO 把图标改成codec首字母
             toolbarNotification = new Notification.Builder(MainService.this, "1")
                     .setSmallIcon(R.drawable.ic_headset_black_24dp)
                     .setWhen(System.currentTimeMillis())
