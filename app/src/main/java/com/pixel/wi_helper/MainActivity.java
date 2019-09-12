@@ -6,8 +6,11 @@ import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AlertDialog;
@@ -15,6 +18,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -26,6 +31,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvDeviceName;
     private TextView tvConnectStat;
     private TextView tvBatteryLvl;
+    private TextView tvOptions;
+
     private ImageView imgBattery;
     private ImageView imgCodecLogo;
     private TextView tvCodecName;
@@ -42,6 +49,8 @@ public class MainActivity extends AppCompatActivity {
     private Spinner codecsSpinner;
     private Spinner samplingSpinner;
     private Spinner bitSpinner;
+    private Vibrator mVibrator;
+    boolean configuringPreset = false;
 
 
     @Override
@@ -61,17 +70,23 @@ public class MainActivity extends AppCompatActivity {
         tvDeviceName = findViewById(R.id.tv_device_name);
         tvConnectStat = findViewById(R.id.tv_connect_status);
         tvBatteryLvl = findViewById(R.id.ac_battLv);
+        tvOptions = findViewById(R.id.tv_options);
         imgBattery = findViewById(R.id.ac_battMeter);
         imgCodecLogo = findViewById(R.id.ac_codecLogo);
         tvCodecName = findViewById(R.id.ac_codecText);
         tvCodecStat1 = findViewById(R.id.ac_codecStatusLine1);
         tvCodecStat2 = findViewById(R.id.ac_codecStatusLine2);
-        ImageView imgSetHQ = findViewById(R.id.ac_codecHq);
+        final ImageView imgSetHQ = findViewById(R.id.ac_codecHq);
         ImageView imgSetPowersaving = findViewById(R.id.ac_codecBatt);
         btnSetCodec = findViewById(R.id.btnSetCodec);
         codecsSpinner = findViewById(R.id.ac_codecsSpinner);
         samplingSpinner = findViewById(R.id.ac_sampleRateSpinner);
         bitSpinner = findViewById(R.id.ac_bitsSpinner);
+        final AlphaAnimation blinkAnimation = new AlphaAnimation(0.0f,1.0f);
+        blinkAnimation.setDuration(Animation.INFINITE);
+        blinkAnimation.setRepeatMode(Animation.RESTART);
+        mVibrator = (Vibrator)getApplication().getSystemService(VIBRATOR_SERVICE);
+
 
         Intent startIntent = new Intent(this, MainService.class);
         startService(startIntent);
@@ -81,13 +96,18 @@ public class MainActivity extends AppCompatActivity {
         btnSetCodec.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-               BluetoothCodecConfig codecConfig = new BluetoothCodecConfig(selectCodecIndex,
-                       BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST,selectSamplingIndex,
-                       selectBitIndex,BluetoothCodecConfig.CHANNEL_MODE_STEREO,
-                       1003,0,0,0);
-               serviceBinder.setCodec(codecConfig);
-               spinnerChangesIsPending = false;
-               btnSetCodec.setVisibility(View.INVISIBLE);
+                if (configuringPreset){
+                    int[] preset = {selectCodecIndex,selectSamplingIndex,selectBitIndex};
+
+                }else {
+                    BluetoothCodecConfig codecConfig = new BluetoothCodecConfig(selectCodecIndex,
+                            BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST,selectSamplingIndex,
+                            selectBitIndex,BluetoothCodecConfig.CHANNEL_MODE_STEREO,
+                            1003,0,0,0);
+                    serviceBinder.setCodec(codecConfig);
+                    spinnerChangesIsPending = false;
+                    btnSetCodec.setVisibility(View.INVISIBLE);
+                }
             }
         });
         imgSetHQ.setOnClickListener(new View.OnClickListener() {
@@ -97,10 +117,29 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        imgSetHQ.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                imgSetHQ.setAnimation(blinkAnimation);
+                blinkAnimation.start();
+                mVibrator.vibrate(VibrationEffect.createOneShot(20,128));
+                configPreset();
+                return false;
+            }
+        });
+
         imgSetPowersaving.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 serviceBinder.setCodecByPreset(2);
+            }
+        });
+
+        imgSetPowersaving.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+
+                return false;
             }
         });
         codecsSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -140,6 +179,12 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onNothingSelected(AdapterView<?> parent) { }
         });
+    }
+
+    private void configPreset() {
+        tvOptions.setText(R.string.presets);
+
+        configuringPreset = true;
     }
 
     private void spinnersChanged() {

@@ -36,4 +36,5 @@
     <string name="tap_to_open">tap to open "Wi-Helper"</string>
     <string name="select">Select</string>
     <string name="disconnected">Disconnected</string>
+    <string name="presets">Presets</string>
 </resources>
