@@ -8,11 +8,12 @@ import static android.content.Context.MODE_PRIVATE;
 
 public class ConfigHelper {
     private SharedPreferences sharedPreferences;
-    final int PRESET_HQ = 1;
-    final int PRESET_PWR= 2;
-    final int INDEX_CODEC = 1;
-    final int INDEX_SAMPING = 2;
-    final int INDEX_BITDEPTH = 3;
+    public static final int NONE = 0;
+    public static final int PRESET_HQ = 1;
+    public static final int PRESET_PWR = 2;
+    public static final int INDEX_CODEC = 1;
+    public static final int INDEX_SAMPING = 2;
+    public static final int INDEX_BITDEPTH = 3;
 
 
     public ConfigHelper(Context context) {
@@ -41,7 +42,20 @@ public class ConfigHelper {
 
 
     }
-    public int getPresetConfig(String key){
-        return sharedPreferences.getInt(key,0);
+
+    public int getConfigByKey(String key) {
+        return sharedPreferences.getInt(key, 0);
+    }
+
+    public int getBtX2Int(String key) {
+        int value = sharedPreferences.getInt(key, 0);
+        switch (value) {
+            case 3:
+                return 4;
+            case 4:
+                return 8;
+            default:
+                return value;
+        }
     }
 }

@@ -274,11 +274,11 @@ public class MainService extends Service {
             if (action != null) {
                 switch (action) {
                     case "com.pixel.wi_helper.hqOnClick":
-                        btCtrl.setCodecByPreset(1);
+                        btCtrl.setCodecByPreset(1,getApplicationContext());
                         switchToggle(1, true);
                         break;
                     case "com.pixel.wi_helper.pwsOnClick":
-                        btCtrl.setCodecByPreset(2);
+                        btCtrl.setCodecByPreset(2,getApplicationContext());
                         switchToggle(2, true);
                         break;
                     default:
@@ -437,7 +437,7 @@ public class MainService extends Service {
         }
 
         void setCodecByPreset(int i) {
-            btCtrl.setCodecByPreset(i);
+            btCtrl.setCodecByPreset(i,getApplicationContext());
         }
 
 //        int isPlaying() {

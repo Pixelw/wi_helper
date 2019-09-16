@@ -47,6 +47,9 @@ public class MainActivity extends AppCompatActivity {
     private int selectCodecIndex = 0;
     private int selectSamplingIndex = 1;
     private int selectBitIndex = 1;
+    private int codecSpinnerPosition = 0;
+    private int samplingSpinnerPosition = 0;
+    private int bitSpinnerPosition = 0;
     private Spinner codecsSpinner;
     private Spinner samplingSpinner;
     private Spinner bitSpinner;
@@ -79,20 +82,20 @@ public class MainActivity extends AppCompatActivity {
         tvCodecStat1 = findViewById(R.id.ac_codecStatusLine1);
         tvCodecStat2 = findViewById(R.id.ac_codecStatusLine2);
         final ImageView imgSetHQ = findViewById(R.id.ac_codecHq);
-        ImageView imgSetPowersaving = findViewById(R.id.ac_codecBatt);
+        final ImageView imgSetPowersaving = findViewById(R.id.ac_codecBatt);
         btnSetCodec = findViewById(R.id.btnSetCodec);
         codecsSpinner = findViewById(R.id.ac_codecsSpinner);
         samplingSpinner = findViewById(R.id.ac_sampleRateSpinner);
         bitSpinner = findViewById(R.id.ac_bitsSpinner);
-        final AlphaAnimation blinkAnimation = new AlphaAnimation(0.0f,1.0f);
+        final AlphaAnimation blinkAnimation = new AlphaAnimation(0.0f, 1.0f);
         blinkAnimation.setDuration(500);
         blinkAnimation.setRepeatCount(Animation.INFINITE);
         blinkAnimation.setRepeatMode(Animation.RESTART);
         savedPreferences = new ConfigHelper(this);
-        mVibrator = (Vibrator)getApplication().getSystemService(VIBRATOR_SERVICE);
+        mVibrator = (Vibrator) getApplication().getSystemService(VIBRATOR_SERVICE);
 
 
-        Intent startIntent = new Intent(this, MainService.class);
+        final Intent startIntent = new Intent(this, MainService.class);
         startService(startIntent);
         final Intent bindIntent = new Intent(getApplicationContext(), MainService.class);
         bindService(bindIntent, connection, BIND_AUTO_CREATE);
@@ -100,14 +103,14 @@ public class MainActivity extends AppCompatActivity {
         btnSetCodec.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (configuringPreset != 0){
-                    savedPreferences.savePresetConfig(configuringPreset,selectCodecIndex,
-                            selectSamplingIndex,selectBitIndex);
+                if (configuringPreset != 0) {
+                    savedPreferences.savePresetConfig(configuringPreset, codecSpinnerPosition,
+                            samplingSpinnerPosition, bitSpinnerPosition);
                 } else {
                     BluetoothCodecConfig codecConfig = new BluetoothCodecConfig(selectCodecIndex,
-                            BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST,selectSamplingIndex,
-                            selectBitIndex,BluetoothCodecConfig.CHANNEL_MODE_STEREO,
-                            1003,0,0,0);
+                            BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST, selectSamplingIndex,
+                            selectBitIndex, BluetoothCodecConfig.CHANNEL_MODE_STEREO,
+                            1003, 0, 0, 0);
                     serviceBinder.setCodec(codecConfig);
                     spinnerChangesIsPending = false;
                     btnSetCodec.setVisibility(View.INVISIBLE);
@@ -117,55 +120,79 @@ public class MainActivity extends AppCompatActivity {
         imgSetHQ.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                serviceBinder.setCodecByPreset(1);
+                if (configuringPreset == ConfigHelper.PRESET_HQ) {
+                    v.clearAnimation();
+                    configuringPreset = ConfigHelper.NONE;
+                } else if (configuringPreset == ConfigHelper.PRESET_PWR) {
+                    imgSetPowersaving.clearAnimation();
+                    v.startAnimation(blinkAnimation);
+                    configuringPreset = ConfigHelper.PRESET_HQ;
+                } else {
+                    serviceBinder.setCodecByPreset(1);
+                }
+
             }
         });
 
         imgSetHQ.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                //TODO 修改spinner下标
-                imgSetHQ.setAnimation(blinkAnimation);
-                blinkAnimation.start();
-                mVibrator.vibrate(VibrationEffect.createOneShot(20,128));
-                configuringPreset = 1;
-                codecsSpinner.setSelection(savedPreferences.getPresetConfig("HqCodecIndex"));
-                samplingSpinner.setSelection(savedPreferences.getPresetConfig("HqSamplingIndex"));
-                bitSpinner.setSelection(savedPreferences.getPresetConfig("HqBitIndex"));
-
-
-                return false;
+                if ( startBlink(v, blinkAnimation)){
+                    configuringPreset = ConfigHelper.PRESET_HQ;
+                }
+                codecsSpinner.setSelection(savedPreferences.getConfigByKey("HqCodecIndex"));
+                samplingSpinner.setSelection(savedPreferences.getConfigByKey("HqSamplingIndex"));
+                bitSpinner.setSelection(savedPreferences.getConfigByKey("HqBitIndex"));
+                return true;
             }
         });
 
         imgSetPowersaving.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                serviceBinder.setCodecByPreset(2);
+                if (configuringPreset == ConfigHelper.PRESET_PWR) {
+                    v.clearAnimation();
+                    configuringPreset = ConfigHelper.NONE;
+                } else if (configuringPreset == ConfigHelper.PRESET_HQ) {
+                    imgSetHQ.clearAnimation();
+                    v.startAnimation(blinkAnimation);
+                    configuringPreset = ConfigHelper.PRESET_PWR;
+                } else {
+                    serviceBinder.setCodecByPreset(2);
+                }
             }
         });
 
         imgSetPowersaving.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
+                if (startBlink(v, blinkAnimation)){
+                    configuringPreset = ConfigHelper.PRESET_PWR;
+                }
+                codecsSpinner.setSelection(savedPreferences.getConfigByKey("PwrCodecIndex"));
+                samplingSpinner.setSelection(savedPreferences.getConfigByKey("PwrSamplingIndex"));
+                bitSpinner.setSelection(savedPreferences.getConfigByKey("PwrBitIndex"));
 
-                return false;
+                return true;
             }
         });
         codecsSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                codecSpinnerPosition = position;
                 if (selectCodecIndex != position) spinnersChanged();
                 selectCodecIndex = position;
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
         });
 
         samplingSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                samplingSpinnerPosition = position;
                 if (selectSamplingIndex != position) spinnersChanged();
                 selectSamplingIndex = position == 0 ? 1 :
                         position == 1 ? 2 :
@@ -174,12 +201,14 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
         });
 
         bitSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                bitSpinnerPosition = position;
                 if (selectBitIndex != position) spinnersChanged();
                 selectBitIndex = position == 0 ? 1 :
                         position == 1 ? 2 :
@@ -187,18 +216,27 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
         });
     }
 
-    private void configPreset() {
-        tvOptions.setText(R.string.presets);
-
-
+    private boolean startBlink(View v, Animation animation) {
+        if(configuringPreset != 0){
+            animation.cancel();
+            configuringPreset = 0;
+            return false;
+        }else {
+            tvOptions.setText(R.string.presets);
+            v.startAnimation(animation);
+            mVibrator.vibrate(VibrationEffect.createOneShot(20, 128));
+            return true;
+        }
     }
 
+
     private void spinnersChanged() {
-        if (!spinnerChangesIsPending){
+        if (!spinnerChangesIsPending) {
             btnSetCodec.setVisibility(View.VISIBLE);
             spinnerChangesIsPending = true;
         }
@@ -230,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateDashboard(BluetoothCodecConfig config) {
         if (config != null) {
-            codecsSpinner.setSelection(config.getCodecType(),true);
+            codecsSpinner.setSelection(config.getCodecType(), true);
             switch (config.getCodecType()) {
                 case 0:
                     tvCodecName.setText(R.string.sbc_ac);

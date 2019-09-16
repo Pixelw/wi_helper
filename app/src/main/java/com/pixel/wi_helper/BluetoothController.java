@@ -6,8 +6,11 @@ import android.bluetooth.BluetoothCodecConfig;
 import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
+
+import com.pixel.wi_helper.utils.ConfigHelper;
 
 import java.util.Set;
 
@@ -143,7 +146,8 @@ class BluetoothController {
         }
     }
 
-    void setCodecByPreset(int preset) {
+    void setCodecByPreset(int preset, Context context) {
+        ConfigHelper helper = new ConfigHelper(context);
         //default
         int codecType = BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC;
         int codecPriority = BluetoothCodecConfig.CODEC_PRIORITY_DEFAULT;
@@ -157,10 +161,10 @@ class BluetoothController {
 
         switch (preset) {
             case 1: //hq music
-                codecType = BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC;
+                codecType = helper.getConfigByKey("HqCodecIndex");
                 codecPriority = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
-                sampleRate = BluetoothCodecConfig.SAMPLE_RATE_44100;
-                bitsPerSample = BluetoothCodecConfig.BITS_PER_SAMPLE_16;
+                sampleRate = helper.getBtX2Int("HqSamplingIndex");
+                bitsPerSample = helper.getBtX2Int("HqBitIndex");
                 channelMode = BluetoothCodecConfig.CHANNEL_MODE_STEREO;
                 codecSpecific1Value = 1003;
                 codecSpecific2Value = 0;
@@ -168,10 +172,10 @@ class BluetoothController {
                 codecSpecific4Value = 0;
                 break;
             case 2://video or power saving
-                codecType = BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC;
+                codecType = helper.getConfigByKey("PwrCodecIndex");
                 codecPriority = BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST;
-                sampleRate = BluetoothCodecConfig.SAMPLE_RATE_48000;
-                bitsPerSample = BluetoothCodecConfig.BITS_PER_SAMPLE_16;
+                sampleRate = helper.getBtX2Int("PwrSamplingIndex");
+                bitsPerSample = helper.getBtX2Int("PwrBitIndex");
                 channelMode = BluetoothCodecConfig.CHANNEL_MODE_STEREO;
                 codecSpecific1Value = 0;
                 codecSpecific2Value = 0;
